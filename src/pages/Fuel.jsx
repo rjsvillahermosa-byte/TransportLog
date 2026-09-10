@@ -72,7 +72,8 @@ function LogFillModal({ open, onClose, vehicles, onSaved }) {
     if (!plate) return;
     const fills = await api.entities.FuelLog.list("-fill_date", 500);
     const last = fills.filter((x) => x.vehicle_plate === plate).sort((a, b) => b.odometer - a.odometer)[0];
-    if (last) setForm((f) => ({ ...f, odometer: String(last.odometer) }));
+    // Suggest the last odometer, but never overwrite a value the user already typed
+    if (last) setForm((f) => (f.odometer === "" ? { ...f, odometer: String(last.odometer) } : f));
   };
 
   const onPhoto = (e) => {

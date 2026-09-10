@@ -42,8 +42,16 @@ export function computePmsStatus(vehicle, serviceLogs = [], currentOdo = 0, toda
   const intervalKm = Number(vehicle.pms_interval_km) || suggestPms(vehicle.model).intervalKm;
   const intervalMonths = Number(vehicle.pms_interval_months) || suggestPms(vehicle.model).intervalMonths;
 
+  // PMS baseline comes from maintenance services only — a tire swap or
+  // registration errand shouldn't reset the change-oil clock.
+  const NON_PMS_TYPES = ["Tire Replacement", "Registration Renewal", "Repair"];
   const myServices = serviceLogs
-    .filter((s) => s.vehicle_plate === vehicle.plate_number && s.service_date)
+    .filter(
+      (s) =>
+        s.vehicle_plate === vehicle.plate_number &&
+        s.service_date &&
+        !NON_PMS_TYPES.includes(s.service_type)
+    )
     .sort((a, b) => dayjs(b.service_date).valueOf() - dayjs(a.service_date).valueOf());
   const last = myServices[0] || null;
 
