@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- TransportLog app icon — mint tile, cream blob, teal car -->
+  <rect width="512" height="512" rx="120" fill="#CFE3D6"/>
+  <circle cx="400" cy="120" r="150" fill="#FAF3E7" opacity="0.8"/>
+  <circle cx="110" cy="410" r="120" fill="#FAF3E7" opacity="0.6"/>
+  <circle cx="256" cy="240" r="150" fill="#1E7A5A"/>
+  <g transform="translate(256 268) scale(7.5) translate(-12 -12)" fill="none" stroke="#FAF3E7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10.5 15.5 7A2 2 0 0 0 13.9 6H9.1c-.6 0-1.2.3-1.6.8L5 10.5l-2.5.6C1.7 11.3 1 12.1 1 13v3c0 .6.4 1 1 1h2"/>
+    <circle cx="7" cy="17" r="2"/>
+    <circle cx="17" cy="17" r="2"/>
+    <path d="M9 17h6"/>
+  </g>
+</svg>

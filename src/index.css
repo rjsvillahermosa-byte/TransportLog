@@ -1,0 +1,43 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Brand theme tokens (RGB triplets) — overridden at runtime by
+       src/lib/theme.js when the admin sets a hotel palette in Settings. */
+    --brand: 30 122 90;        /* #1E7A5A deep teal (default) */
+    --brand-dark: 22 106 78;   /* #166A4E */
+    --accent: 242 183 5;       /* #F2B705 golden yellow (default) */
+    --accent-dark: 110 83 2;   /* readable text on accent tints */
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply font-body text-cocoa antialiased;
+    /* cream canvas with organic mint blobs — the signature backdrop */
+    background-color: #faf3e7;
+    background-image:
+      radial-gradient(820px 520px at 88% -8%, rgba(207, 227, 214, 0.85), transparent 62%),
+      radial-gradient(680px 460px at -12% 104%, rgba(207, 227, 214, 0.6), transparent 60%),
+      radial-gradient(420px 320px at 50% 118%, rgba(207, 227, 214, 0.4), transparent 65%);
+    background-attachment: fixed;
+  }
+}
+
+@media print {
+  body {
+    background: white;
+  }
+  header,
+  button {
+    display: none !important;
+  }
+  table {
+    width: 100%;
+    font-size: 12px;
+  }
+}
