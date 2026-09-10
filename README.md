@@ -17,6 +17,39 @@ npm run dev
 
 Open the printed URL (default http://localhost:5173).
 
+## Deploy — make it live
+
+The repo is deploy-ready: `npm run build` → `dist/`, served by the zero-dependency
+`server.js` (`npm start`, SPA fallback, respects `$PORT`).
+
+**Spaceship / Shipmate (spaceship.run → shipmate.run)** — git-connected continuous
+delivery; it builds the container for you (no Dockerfile needed):
+
+```bash
+git remote add origin <your-github-repo-url>
+git push -u origin main
+```
+
+Then connect the repo in the Shipmate dashboard — every push deploys automatically.
+
+**Anywhere else (one command each):**
+- Vercel: `npx vercel deploy --prod`
+- Netlify: `npx netlify deploy --prod --dir=dist` (or drag `../fleetflow-dist.zip` into app.netlify.com/drop)
+- Render/Railway/Fly: point at the repo, start command `npm start` (they run `npm install && npm run build` first)
+- Any static host: upload `dist/` (zip at `../fleetflow-dist.zip`)
+
+**Mobile:** responsive at 390px+ (audited page-by-page), installable as a PWA
+(`manifest.webmanifest` + `logo.svg`, standalone display, brand-aware status bar via
+`theme-color`), camera capture inputs (`capture="environment"`) for ODO/receipt/license photos.
+
+## Brand theme (Settings → Brand Theme)
+
+The admin can match the hotel/company palette at runtime: 8 presets (Deep Teal, Hotel
+Blue, Ocean, Burgundy, Royal Purple, Forest, Sunset, Charcoal) or custom primary +
+accent color pickers with live preview. Colors flow through CSS variables
+(`src/lib/theme.js`), so buttons, nav, chips, status colors, the route map, charts and
+the phone status bar all follow — persisted per device in localStorage.
+
 **Demo login:** `demo@fleetflow.local` / `demo1234` — or click **Continue with Google**
 (simulated). All data is seeded on first boot and lives in your browser only.
 
