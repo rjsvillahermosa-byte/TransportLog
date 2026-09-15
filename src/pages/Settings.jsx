@@ -19,6 +19,7 @@ import { applyTheme, DEFAULT_THEME, getTheme, resetTheme, saveTheme, THEME_PRESE
 import { Button, Input, Label, Modal, Select, Spinner } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { cn } from "../lib/utils";
+import { isVoiceEnabled as getVoiceOn, recognitionSupported, setVoiceEnabled, speak, HELP_TEXT } from "../lib/voice";
 
 // Shown when a non-admin reaches /settings directly.
 export function AdminOnlyNotice() {
@@ -35,6 +36,60 @@ export function AdminOnlyNotice() {
       <Button variant="outline" size="sm" className="mt-5" onClick={() => (window.location.href = "/")}>
         Back to Missions
       </Button>
+    </div>
+  );
+}
+
+function VoiceCard() {
+  const toast = useToast();
+  const [on, setOn] = useState(getVoiceOn());
+  const supported = recognitionSupported();
+
+  const toggle = () => {
+    const next = !on;
+    setOn(next);
+    setVoiceEnabled(next);
+    toast({
+      title: next ? "Voice assistant on" : "Voice assistant muted",
+      description: next ? "Tap the round mic button to give commands." : "Spoken replies are off; the assistant still works by text.",
+    });
+  };
+
+  return (
+    <div className="bg-white rounded-3xl shadow-card p-5 mb-6">
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-cocoa flex items-center gap-2">
+            🎙 Voice Assistant
+            <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-full border", supported ? "bg-mint/60 text-brand border-brand/30" : "bg-accent/15 text-accent-dark border-accent/40")}>
+              {supported ? "mic ready" : "text only"}
+            </span>
+          </h3>
+          <p className="text-xs text-taupe mt-1 max-w-md">
+            Hands-free fleet control for drivers: start and end missions, dictate odometer
+            readings, report incidents with time stamps, and hear briefings — powered by the
+            browser's built-in speech engine, no cloud needed.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => { setOn(getVoiceOn()); speak("Voice check. I am reading this correctly."); toast({ title: "Voice test spoken" }); }}>
+            Test Voice
+          </Button>
+          <Button variant={on ? "destructive" : "primary"} size="sm" onClick={toggle}>
+            {on ? "Mute" : "Enable"}
+          </Button>
+        </div>
+      </div>
+      <div className="mt-3 pt-3 border-t border-sand/70">
+        <p className="text-[11px] font-semibold text-taupe uppercase tracking-wide mb-1.5">Say things like</p>
+        <div className="flex flex-wrap gap-1.5">
+          {["Start mission", "End mission", "Odometer 38400", "Report incident flat tire", "What are my missions", "What incidents were reported", "What time is it", "Navigate to fuel", "Help"].map((c) => (
+            <span key={c} className="text-[10px] font-semibold bg-mint/50 text-mocha rounded-full px-2.5 py-1">
+              &ldquo;{c}&rdquo;
+            </span>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -407,6 +462,9 @@ export default function Settings({ user }) {
           </Button>
         </div>
       </div>
+
+      {/* Voice assistant */}
+      <VoiceCard />
 
       <div className="bg-white rounded-3xl shadow-card p-5 mb-6">
         <div className="flex items-center gap-2 mb-1">

@@ -1,0 +1,17 @@
+# Build output
+/build
+/app/build
+.gradle
+.kotlin
+
+# Local machine config — local.properties holds the Supabase URL/anon key and
+# the SDK path, so it must never be committed.
+local.properties
+keystore.properties
+*.keystore
+*.jks
+
+# IDE
+.idea
+*.iml
+.DS_Store

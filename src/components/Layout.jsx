@@ -20,6 +20,7 @@ import {
 import { cn } from "../lib/utils";
 import { auth, drainQueue, useOnline, usePendingCount, onDataChange } from "../lib/db";
 import { Button } from "./ui";
+import VoiceAssistant from "./VoiceAssistant";
 
 const NAV_ITEMS = [
   { label: "Missions", path: "/", icon: ClipboardList },
@@ -212,6 +213,7 @@ export default function Layout({ user, children }) {
 
         <main className="max-w-5xl mx-auto px-4 py-6">{children}</main>
         <ToastHost toasts={toasts} dismiss={dismiss} />
+        <VoiceAssistant user={user} />
       </div>
     </ToastCtx.Provider>
   );

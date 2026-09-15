@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { Briefcase, ClipboardList, Trash2, Clock, MapPin, Calendar, Car } from "lucide-react";
 import dayjs from "../lib/day";
 import { api, isOnline } from "../lib/db";
+import { AlertTriangle } from "lucide-react";
+import { formatTime } from "../lib/voice";
 import { cn, STATUS_STYLES, BOOKING_ICONS } from "../lib/utils";
 import { Button, EmptyState, Spinner } from "../components/ui";
 import { useToast } from "../components/Layout";
@@ -105,6 +107,7 @@ function MissionCard({ request: r, onDelete }) {
 
 export default function Missions({ user }) {
   const [requests, setRequests] = useState([]);
+  const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("today");
   const [kind, setKind] = useState("all"); // all | guest | errand
@@ -122,8 +125,18 @@ export default function Missions({ user }) {
     }
   };
 
+  const loadIncidents = async () => {
+    try {
+      setIncidents(await api.entities.IncidentLog.list("-created_date", 5));
+    } catch {}
+  };
+
   useEffect(() => {
     load();
+    loadIncidents();
+    const onIncident = () => loadIncidents();
+    window.addEventListener("app:incident", onIncident);
+    return () => window.removeEventListener("app:incident", onIncident);
   }, []);
 
   // "Pickup in 30 Minutes" reminder — browser notification + toast, deduped,
@@ -247,6 +260,37 @@ export default function Missions({ user }) {
           {filtered.map((r) => (
             <MissionCard key={r.id} request={r} onDelete={load} />
           ))}
+        </div>
+      )}
+
+      {/* Incident log — voice-reported events with timestamps */}
+      {incidents.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-sm font-semibold text-cocoa mb-3 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-accent-dark" /> Incident Log
+            <span className="text-xs font-normal text-taupe">reported via voice or log</span>
+          </h3>
+          <div className="space-y-2">
+            {incidents.map((inc) => (
+              <div key={inc.id} className="bg-white rounded-2xl shadow-card p-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-cocoa">{inc.detail}</p>
+                  <p className="text-xs text-taupe mt-0.5">
+                    {inc.type}
+                    {inc.vehicle_plate ? " · " + inc.vehicle_plate : ""}
+                    {inc.reported_by ? " · " + inc.reported_by : ""}
+                    {inc.source === "voice" ? " · 🎙 via voice" : ""}
+                  </p>
+                </div>
+                <div className="text-right flex-none">
+                  <p className="text-xs font-semibold text-brand">{formatTime(new Date(inc.created_date))}</p>
+                  <p className="text-[10px] text-taupe">
+                    {new Date(inc.created_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

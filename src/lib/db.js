@@ -582,6 +582,30 @@ export function seedIfNeeded() {
   }));
   write("entity:FuelLog", fuelRows);
 
+  // Incident log — voice-reported events with timestamps
+  write("entity:IncidentLog", [
+    {
+      id: uid(),
+      type: "Breakdown",
+      detail: "Van 03 stalled at EDSA — towed to shop",
+      mission_id: "",
+      vehicle_plate: "NAC 9012",
+      reported_by: "Miguel Torres",
+      source: "voice",
+      created_date: isoDaysAgo(5, 16, 42),
+    },
+    {
+      id: uid(),
+      type: "Flat Tire",
+      detail: "Rear-left tire punctured on NLEX",
+      mission_id: "",
+      vehicle_plate: "NAC 1234",
+      reported_by: "Edward Sacil",
+      source: "voice",
+      created_date: isoDaysAgo(2, 9, 15),
+    },
+  ]);
+
   // Completed missions with mileage logs so History / FO Dashboard have data.
   // Odometer ranges are chosen to interleave with the fuel-fill windows below,
   // so the "unaccounted km" audit only fires where it tells the fraud story.
@@ -761,6 +785,7 @@ export function resetTransportData() {
   write("entity:MileageLog", []);
   write("entity:ServiceLog", []);
   write("entity:FuelLog", []);
+  write("entity:IncidentLog", []);
   write("sync:queue", []);
   emitChange();
 }
@@ -773,6 +798,7 @@ export const api = {
     Driver: makeEntity("Driver"),
     ServiceLog: makeEntity("ServiceLog"),
     FuelLog: makeEntity("FuelLog"),
+    IncidentLog: makeEntity("IncidentLog"),
     User: makeEntity("User"),
   },
   auth,

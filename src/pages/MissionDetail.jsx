@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import dayjs from "dayjs";
 import { themeColors } from "../lib/theme";
+import { setMissionContext, onOdoValue } from "../lib/voice";
 import { api, integrations, isOnline, enqueueAction } from "../lib/db";
 import { cn, STATUS_STYLES } from "../lib/utils";
 import { Button, Spinner, Textarea } from "../components/ui";
@@ -28,6 +29,12 @@ function OdoCapture({ label, onCaptured, existing }) {
   const [reading, setReading] = useState(existing?.reading ? String(existing.reading) : "");
   const [readingAi, setReadingAi] = useState(false);
   const [manual, setManual] = useState(false);
+
+  // "Odometer 38400" from the voice assistant fills this field
+  useEffect(() => onOdoValue((v) => {
+    setManual(true);
+    setReading(String(v));
+  }), []);
 
   const onFile = async (e) => {
     const file = e.target.files?.[0];
@@ -63,7 +70,9 @@ function OdoCapture({ label, onCaptured, existing }) {
   };
 
   useEffect(() => {
-    if (photo && reading) onCaptured({ photoUrl: photo, reading: parseFloat(reading), offline: manual });
+    // A reading alone (voice-dictated or manual) arms the mission; the photo
+    // stays optional so drivers can proceed when the camera isn't available.
+    if (reading) onCaptured({ photoUrl: photo, reading: parseFloat(reading), offline: manual, photoless: !photo });
     else onCaptured(null);
   }, [photo, reading]); // eslint-disable-line
 
@@ -223,6 +232,22 @@ export default function MissionDetail() {
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const tracker = useRouteTracker();
+
+  // expose start/end to the voice assistant ("start mission" / "end mission")
+  useEffect(() => {
+    if (!request) return;
+    setMissionContext({
+      missionId: request.mission_id,
+      guest: request.guest_name,
+      vehiclePlate: request.vehicle_plate || "",
+      status: request.status,
+      odoArmed: !!startOdo,
+      endArmed: !!endOdo,
+      start: () => startMission(),
+      end: () => endMission(),
+    });
+    return () => setMissionContext(null);
+  }, [request, startOdo, endOdo, log, remarks]); // eslint-disable-line
 
   const load = async () => {
     setLoading(true);
