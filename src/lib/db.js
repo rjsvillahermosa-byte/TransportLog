@@ -401,6 +401,15 @@ export function seedIfNeeded() {
       status: "Active",
       created_date: nowIso(),
     },
+    {
+      id: uid(),
+      full_name: "Ana Supervisor",
+      email: "supervisor@hotel.local",
+      password: "super1234",
+      role: "Supervisor",
+      status: "Active",
+      created_date: nowIso(),
+    },
   ]);
 
   write("entity:Driver", [

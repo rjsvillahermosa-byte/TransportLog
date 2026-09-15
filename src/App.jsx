@@ -17,6 +17,7 @@ import NewBooking from "./pages/NewBooking";
 import History from "./pages/History";
 import QrCodes from "./pages/QrCodes";
 import Settings, { AdminOnlyNotice } from "./pages/Settings";
+import Reports from "./pages/Reports";
 import { LoginPage } from "./pages/Auth";
 import { RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./pages/AuthExtra";
 
@@ -54,10 +55,15 @@ function Shell() {
 
   return (
     <Layout user={user}>
-      {/* Settings is the owner's area — login-gated by role, so it works the
-          same on mobile: any device signed in with the admin account. */}
+      {/* Role gates — login-based, so they behave the same on any device. */}
       {location.pathname === "/settings" && user.role !== "Admin" ? (
         <AdminOnlyNotice />
+      ) : location.pathname === "/reports" &&
+        !["Admin", "Supervisor"].includes(user.role) ? (
+        <AdminOnlyNotice
+          title="Supervisor access only"
+          message="The report builder is limited to Supervisor and Admin accounts. Ask your administrator for access."
+        />
       ) : (
         <Routes>
           <Route path="/" element={<Missions user={user} />} />
@@ -68,6 +74,7 @@ function Shell() {
           <Route path="/new-booking" element={<NewBooking />} />
           <Route path="/history" element={<History />} />
           <Route path="/qr-codes" element={<QrCodes />} />
+          <Route path="/reports" element={<Reports user={user} />} />
           <Route path="/settings" element={<Settings user={user} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

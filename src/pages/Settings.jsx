@@ -21,18 +21,18 @@ import { useToast } from "../components/Layout";
 import { cn } from "../lib/utils";
 import { isVoiceEnabled as getVoiceOn, recognitionSupported, setVoiceEnabled, speak, HELP_TEXT } from "../lib/voice";
 
-// Shown when a non-admin reaches /settings directly.
-export function AdminOnlyNotice() {
+// Shown when a user reaches a restricted area directly.
+export function AdminOnlyNotice({
+  title = "Admin access only",
+  message = "Settings is restricted to the owner's admin account. Sign in with the admin login on any device — including mobile — to manage the system.",
+}) {
   return (
     <div className="max-w-md mx-auto text-center py-16">
       <div className="w-14 h-14 rounded-2xl bg-mint/60 flex items-center justify-center mx-auto mb-4">
         <Lock className="w-7 h-7 text-taupe" />
       </div>
-      <h1 className="text-xl font-heading font-bold text-cocoa">Admin access only</h1>
-      <p className="text-sm text-taupe mt-2 leading-relaxed">
-        Settings is restricted to the owner's admin account. Sign in with the admin login on any
-        device — including mobile — to manage the system.
-      </p>
+      <h1 className="text-xl font-heading font-bold text-cocoa">{title}</h1>
+      <p className="text-sm text-taupe mt-2 leading-relaxed">{message}</p>
       <Button variant="outline" size="sm" className="mt-5" onClick={() => (window.location.href = "/")}>
         Back to Missions
       </Button>
@@ -155,6 +155,7 @@ function UserModal({ open, onClose, initial, currentEmail, onSaved }) {
           <Label>Role</Label>
           <Select value={form.role} onChange={set("role")}>
             <option value="Staff">Staff</option>
+            <option value="Supervisor">Supervisor — can build & print reports</option>
             <option value="Admin">Admin</option>
           </Select>
         </div>
@@ -375,7 +376,7 @@ export default function Settings({ user }) {
             <h3 className="text-sm font-semibold text-cocoa">User Accounts</h3>
             <p className="text-xs text-taupe">
               Enroll your team in seconds — leave the password blank to auto-generate one.
-              Admins see this Settings area; Staff don't.
+              Admins see this Settings area. Supervisors get the Reports builder. Staff see neither.
             </p>
           </div>
           <Button size="sm" variant="primary" onClick={() => setUserModal({})}>

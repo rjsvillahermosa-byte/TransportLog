@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Car,
   ClipboardList,
+  Printer,
   Droplets,
   LayoutDashboard,
   PlusCircle,
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { label: "FO Dashboard", path: "/fo-dashboard", icon: LayoutDashboard },
   { label: "Fleet", path: "/fleet", icon: Car },
   { label: "Fuel", path: "/fuel", icon: Droplets },
+  { label: "Reports", path: "/reports", icon: Printer },
   { label: "New Booking", path: "/new-booking", icon: PlusCircle },
   { label: "History", path: "/history", icon: History },
   { label: "QR Codes", path: "/qr-codes", icon: QrCode },
@@ -119,7 +121,10 @@ export default function Layout({ user, children }) {
   const [toasts, setToasts] = useState([]);
   const idRef = useRef(0);
   const isAdmin = user?.role === "Admin";
-  const navItems = isAdmin ? NAV_ITEMS : NAV_ITEMS.filter((i) => i.path !== "/settings");
+  const canReports = isAdmin || user?.role === "Supervisor";
+  const navItems = NAV_ITEMS.filter((i) =>
+    i.path === "/settings" ? isAdmin : i.path === "/reports" ? canReports : true
+  );
 
   const toast = useCallback((t) => {
     const id = ++idRef.current;

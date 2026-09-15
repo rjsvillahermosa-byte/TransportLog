@@ -28,16 +28,133 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Report sheet — full-screen print preview rendered via portal to <body>.
+   On screen it overlays the app; when printing, the app chrome is hidden and
+   only the sheet prints (works for both local printers and Save-as-PDF).
+--------------------------------------------------------------------------- */
+.report-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: #f2f2f0;
+  overflow: auto;
+  color: #2e2218;
+}
+.report-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #ffffff;
+  border-bottom: 1px solid #e8dfd0;
+  padding: 10px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.rbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.rbtn-primary { background: rgb(var(--brand)); color: #fff; }
+.rbtn-primary:hover { background: rgb(var(--brand-dark)); }
+.rbtn-outline { background: #fff; border-color: #e8dfd0; color: #5a4c3f; }
+.rbtn-outline:hover { background: #cfe3d6; }
+.rbtn-ghost { background: transparent; color: #8a8378; }
+.rbtn-ghost:hover { background: #efe6d8; }
+.report-body {
+  max-width: 210mm;
+  margin: 16px auto 40px;
+  background: #fff;
+  padding: 14mm 12mm;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+.rp-head { margin-bottom: 8mm; }
+.rp-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: rgb(var(--brand));
+}
+.rp-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgb(var(--brand));
+  display: inline-block;
+}
+.rp-title { font-size: 20px; font-weight: 800; margin: 3mm 0 1mm; }
+.rp-sub { font-size: 11px; color: #8a8378; }
+.rp-table-wrap { width: 100%; }
+.rp-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+.rp-table th {
+  text-align: left;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 9.5px;
+  padding: 2.5mm 2mm;
+  border-bottom: 1.5pt solid #2e2218;
+  white-space: nowrap;
+}
+.rp-table td {
+  padding: 2mm 2mm;
+  border-bottom: 0.5pt solid #e8dfd0;
+  vertical-align: top;
+}
+.rp-table tr:nth-child(even) td { background: #faf8f3; }
+.rp-total td {
+  border-top: 1.5pt solid #2e2218;
+  border-bottom: none;
+  font-weight: 800;
+  background: #f4efe3 !important;
+}
+.rp-foot {
+  margin-top: 8mm;
+  padding-top: 3mm;
+  border-top: 0.5pt solid #e8dfd0;
+  font-size: 9px;
+  color: #8a8378;
+}
+
 @media print {
   body {
-    background: white;
+    background: white !important;
+    background-image: none !important;
   }
-  header,
-  button {
+  /* general page prints (History → Export PDF) */
+  header {
     display: none !important;
   }
   table {
     width: 100%;
     font-size: 12px;
+  }
+  /* report-sheet prints: hide the whole app, print only the sheet */
+  body:has(.report-sheet) #root,
+  body:has(.report-sheet) .report-toolbar {
+    display: none !important;
+  }
+  body:has(.report-sheet) .report-sheet {
+    position: static;
+    background: white;
+    overflow: visible;
+  }
+  body:has(.report-sheet) .report-body {
+    box-shadow: none;
+    margin: 0;
+    max-width: none;
+    padding: 0;
   }
 }
