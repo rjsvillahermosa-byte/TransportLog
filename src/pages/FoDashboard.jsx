@@ -146,7 +146,7 @@ export default function FoDashboard() {
                 formatter={(v) => [`${v} km`, "Mileage"]}
                 contentStyle={{ borderRadius: 8, border: "1px solid #EFE6D8", fontSize: 12 }}
               />
-              <Bar dataKey="km" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="km" fill={themeColors().primary} radius={[4, 4, 0, 0]} isAnimationActive={false} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -168,7 +168,7 @@ export default function FoDashboard() {
                     formatter={(v) => [`${v} km`, "Distance"]}
                     contentStyle={{ borderRadius: 8, border: "1px solid #EFE6D8", fontSize: 12 }}
                   />
-                  <Bar dataKey="km" fill="#2F9B77" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="km" fill={themeColors().primarySoft} radius={[0, 4, 4, 0]} isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -209,7 +209,7 @@ export default function FoDashboard() {
                   formatter={(v) => [`${v} km`, "Verified distance"]}
                   contentStyle={{ borderRadius: 8, border: "1px solid #EFE6D8", fontSize: 12 }}
                 />
-                <Bar dataKey="km" fill="#B4552D" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="km" fill={themeColors().accent} radius={[0, 4, 4, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>

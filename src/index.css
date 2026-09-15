@@ -19,12 +19,12 @@
   }
   body {
     @apply font-body text-cocoa antialiased;
-    /* cream canvas with organic mint blobs — the signature backdrop */
-    background-color: #faf3e7;
-    background-image:
+    /* whole-app background — overridable by the Branding Studio */
+    background-color: var(--bg-page, #faf3e7);
+    background-image: var(--bg-blobs,
       radial-gradient(820px 520px at 88% -8%, rgba(207, 227, 214, 0.85), transparent 62%),
       radial-gradient(680px 460px at -12% 104%, rgba(207, 227, 214, 0.6), transparent 60%),
-      radial-gradient(420px 320px at 50% 118%, rgba(207, 227, 214, 0.4), transparent 65%);
+      radial-gradient(420px 320px at 50% 118%, rgba(207, 227, 214, 0.4), transparent 65%));
     background-attachment: fixed;
   }
 }

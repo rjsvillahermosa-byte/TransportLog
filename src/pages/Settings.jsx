@@ -19,7 +19,16 @@ import {
 import { auth, drainQueue, integrations, resetTransportData, useOnline, usePendingCount, userAdmin } from "../lib/db";
 import { getFuelConfig, saveFuelConfig } from "../lib/fuel";
 import { applyTheme, DEFAULT_THEME, getTheme, resetTheme, saveTheme, THEME_PRESETS } from "../lib/theme";
-import { applyBranding, DEFAULT_BRANDING, FONT_OPTIONS, getBranding, resetBranding, saveBranding } from "../lib/branding";
+import {
+  applyBranding,
+  BACKGROUND_PRESETS,
+  DEFAULT_BRANDING,
+  FONT_OPTIONS,
+  getBranding,
+  LOGO_RECOMMEND,
+  resetBranding,
+  saveBranding,
+} from "../lib/branding";
 import { Button, Input, Label, Modal, Select, Spinner } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { cn } from "../lib/utils";
@@ -165,31 +174,56 @@ function BrandingCard() {
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickLogo} />
 
       <div className="flex flex-wrap items-start gap-5 mt-4">
-        {/* logo box */}
+        {/* logo box — with recommended size + display-size slider */}
         <div>
           <Label className="text-[11px] text-taupe">Logo</Label>
-          {draft.logo ? (
-            <div className="mt-1.5 relative">
-              <img src={draft.logo} alt="Logo" className="w-16 h-16 rounded-2xl object-cover border border-sand bg-white" />
-              <div className="flex gap-1.5 mt-1.5">
-                <button onClick={() => fileRef.current?.click()} className="text-[11px] font-semibold text-brand hover:underline">
-                  Replace
-                </button>
-                <span className="text-sand">·</span>
-                <button onClick={() => apply({ ...draft, logo: "" })} className="text-[11px] font-semibold text-red-500 hover:underline">
-                  Remove
-                </button>
+          <div className="flex items-start gap-4 mt-1.5 flex-wrap">
+            {draft.logo ? (
+              <div className="relative">
+                <img
+                  src={draft.logo}
+                  alt="Logo"
+                  style={{ width: draft.logoSize || 36, height: draft.logoSize || 36 }}
+                  className="rounded-2xl object-cover border border-sand bg-white"
+                />
+                <div className="flex gap-1.5 mt-1.5">
+                  <button onClick={() => fileRef.current?.click()} className="text-[11px] font-semibold text-brand hover:underline">
+                    Replace
+                  </button>
+                  <span className="text-sand">·</span>
+                  <button onClick={() => apply({ ...draft, logo: "" })} className="text-[11px] font-semibold text-red-500 hover:underline">
+                    Remove
+                  </button>
+                </div>
               </div>
+            ) : (
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="w-16 h-16 rounded-2xl border-2 border-dashed border-sand flex flex-col items-center justify-center text-taupe hover:border-brand/50 hover:text-brand transition-colors"
+              >
+                {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImagePlus className="w-5 h-5" />}
+              </button>
+            )}
+            <div>
+              <Label className="text-[11px] text-taupe">
+                Display size — {draft.logoSize || 36}px
+              </Label>
+              <input
+                type="range"
+                min={LOGO_RECOMMEND.displayMin}
+                max={LOGO_RECOMMEND.displayMax}
+                step="2"
+                value={draft.logoSize || 36}
+                onChange={(e) => apply({ ...draft, logoSize: Number(e.target.value) })}
+                className="w-36 mt-2 accent-[rgb(var(--brand))]"
+              />
+              <p className="text-[10px] text-taupe mt-1 max-w-[190px]">
+                <span className="font-semibold text-brand">Recommended:</span>{" "}
+                {LOGO_RECOMMEND.upload} — shown crisp at {draft.logoSize || 36}px ({LOGO_RECOMMEND.min} min).
+              </p>
             </div>
-          ) : (
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={uploading}
-              className="mt-1.5 w-16 h-16 rounded-2xl border-2 border-dashed border-sand flex flex-col items-center justify-center text-taupe hover:border-brand/50 hover:text-brand transition-colors"
-            >
-              {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImagePlus className="w-5 h-5" />}
-            </button>
-          )}
+          </div>
         </div>
 
         {/* name + font + size */}
@@ -204,8 +238,8 @@ function BrandingCard() {
             />
           </div>
           <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-[180px]">
-              <Label className="text-[11px] text-taupe">Font</Label>
+            <div className="flex-1 min-w-[220px]">
+              <Label className="text-[11px] text-taupe">Font style</Label>
               <Select
                 value={draft.font}
                 onChange={(e) => apply({ ...draft, font: e.target.value })}
@@ -214,9 +248,22 @@ function BrandingCard() {
                 {FONT_OPTIONS.map((f) => (
                   <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
                     {f.label}
+                    {f.recommended ? " ★ recommended" : ""}
                   </option>
                 ))}
               </Select>
+              {(() => {
+                const rec = FONT_OPTIONS.find((f) => f.value === draft.font)?.rec;
+                if (rec == null || Number(draft.size) === rec) return null;
+                return (
+                  <button
+                    onClick={() => apply({ ...draft, size: rec })}
+                    className="mt-1 text-[10px] font-semibold text-brand bg-mint/60 rounded-full px-2 py-0.5 hover:bg-mint"
+                  >
+                    ✨ Recommended for {draft.font}: {rec}px — apply
+                  </button>
+                );
+              })()}
             </div>
             <div>
               <Label className="text-[11px] text-taupe">Text size — {draft.size}px</Label>
@@ -232,6 +279,46 @@ function BrandingCard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* whole-app background */}
+      <div className="mt-4 pt-4 border-t border-sand/70">
+        <Label className="text-[11px] text-taupe">Whole-app background</Label>
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          {BACKGROUND_PRESETS.map((p) => {
+            const active = draft.background?.id === p.id;
+            return (
+              <button
+                key={p.id}
+                onClick={() => apply({ ...draft, background: { id: p.id, color: p.page } })}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all",
+                  active ? "border-brand bg-brand/10 text-brand shadow-sm" : "border-sand text-mocha hover:bg-mint/40"
+                )}
+              >
+                <span
+                  className="w-4 h-4 rounded-full border border-black/10"
+                  style={{ background: p.page }}
+                />
+                {p.label}
+                {p.recommended && <span className="text-[9px] text-brand">★</span>}
+              </button>
+            );
+          })}
+          <span className="flex items-center gap-1.5 rounded-full border border-sand px-2.5 py-1">
+            <input
+              type="color"
+              value={draft.background?.color || "#FAF3E7"}
+              onChange={(e) => apply({ ...draft, background: { id: "custom", color: e.target.value } })}
+              className="w-4 h-4 rounded-full border-0 cursor-pointer p-0 bg-transparent"
+              aria-label="Custom background color"
+            />
+            <span className="text-[11px] font-semibold text-mocha">Custom</span>
+          </span>
+        </div>
+        <p className="text-[10px] text-taupe mt-1.5">
+          Changes the entire app canvas — header, cards and print sheets stay readable on every preset.
+        </p>
       </div>
 
       {/* live preview strip */}
