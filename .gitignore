@@ -9,3 +9,6 @@ dist
 android
 android-native
 supabase
+
+.vercel
+.env*
