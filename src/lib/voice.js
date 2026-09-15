@@ -20,6 +20,8 @@
 
 // --- speech synthesis -------------------------------------------------------
 const VOICE_KEY = "fleetflow:voice";
+const VOICE_PREF_KEY = "fleetflow:voicepref";
+
 export function isVoiceEnabled() {
   return localStorage.getItem(VOICE_KEY) !== "off";
 }
@@ -28,17 +30,65 @@ export function setVoiceEnabled(on) {
   if (!on) window.speechSynthesis?.cancel();
 }
 
+// Male "Jarvis" voices, best first — availability depends on the device.
+const MALE_VOICE_HINTS =
+  /daniel|david|alex|fred|guy|mark|male|george|ryan|arthur|oliver|james|rishi|aaron|en-gb-ossmale/i;
+
+/** All installed voices (may be empty until the browser finishes loading them). */
+export function listVoices() {
+  if (!("speechSynthesis" in window)) return [];
+  return window.speechSynthesis.getVoices();
+}
+
+/**
+ * Resolves the active voice:
+ *   1. the user's explicit pick (Settings → Voice)
+ *   2. auto — best male English voice (Jarvis default)
+ *   3. auto — any English voice
+ */
+export function getPreferredVoice() {
+  const voices = listVoices();
+  if (!voices.length) return null;
+  const pref = localStorage.getItem(VOICE_PREF_KEY);
+  if (pref && pref !== "auto-male" && pref !== "auto-female") {
+    const exact = voices.find((v) => v.name === pref);
+    if (exact) return exact;
+  }
+  const en = voices.filter((v) => /en(-|_)?/i.test(v.lang) || /english/i.test(v.name));
+  const pool = en.length ? en : voices;
+  if (pref === "auto-female") {
+    const female =
+      pool.find((v) => /female|samantha|zira|aria|jenny|google us english/i.test(v.name)) ||
+      pool[0];
+    return female;
+  }
+  // default: male Jarvis
+  return (
+    pool.find((v) => MALE_VOICE_HINTS.test(v.name) && !/female/i.test(v.name)) ||
+    pool.find((v) => !/female/i.test(v.name)) ||
+    pool[0]
+  );
+}
+
+export function getVoicePreference() {
+  return localStorage.getItem(VOICE_PREF_KEY) || "auto-male";
+}
+export function setVoicePreference(name) {
+  localStorage.setItem(VOICE_PREF_KEY, name);
+}
+/** The resolved voice name (for UI display). */
+export function activeVoiceName() {
+  return getPreferredVoice()?.name || "System default";
+}
+
 export function speak(text, { interrupt = true } = {}) {
   if (!isVoiceEnabled() || !("speechSynthesis" in window)) return;
   if (interrupt) window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  const voices = window.speechSynthesis.getVoices();
-  const preferred =
-    voices.find((v) => /en(-|_)/i.test(v.lang) && /female|samantha|zira|aria|jenny|google us/i.test(v.name)) ||
-    voices.find((v) => /en(-|_)/i.test(v.lang));
+  const preferred = getPreferredVoice();
   if (preferred) u.voice = preferred;
   u.rate = 1.04;
-  u.pitch = 1.0;
+  u.pitch = 0.95; // slightly deeper — Jarvis
   window.speechSynthesis.speak(u);
   return u;
 }

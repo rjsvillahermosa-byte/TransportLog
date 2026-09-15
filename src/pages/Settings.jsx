@@ -38,7 +38,17 @@ import { useEffect } from "react";
 import { Button, Input, Label, Modal, Select, Spinner } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { cn } from "../lib/utils";
-import { isVoiceEnabled as getVoiceOn, recognitionSupported, setVoiceEnabled, speak, HELP_TEXT } from "../lib/voice";
+import {
+  isVoiceEnabled as getVoiceOn,
+  getPreferredVoice,
+  getVoicePreference,
+  listVoices,
+  recognitionSupported,
+  setVoiceEnabled,
+  setVoicePreference,
+  speak,
+  HELP_TEXT,
+} from "../lib/voice";
 
 // Shown when a user reaches a restricted area directly.
 export function AdminOnlyNotice({
@@ -63,6 +73,30 @@ function VoiceCard() {
   const toast = useToast();
   const [on, setOn] = useState(getVoiceOn());
   const supported = recognitionSupported();
+  const [voices, setVoices] = useState(() => listVoices());
+  const [voicePref, setVoicePref] = useState(getVoicePreference());
+
+  // browsers load the voice list asynchronously — refresh when ready
+  useEffect(() => {
+    const refresh = () => setVoices(listVoices());
+    refresh();
+    window.speechSynthesis?.addEventListener?.("voiceschanged", refresh);
+    const t = setTimeout(refresh, 800);
+    return () => {
+      window.speechSynthesis?.removeEventListener?.("voiceschanged", refresh);
+      clearTimeout(t);
+    };
+  }, []);
+
+  const pickVoice = (name) => {
+    setVoicePref(name);
+    const resolved = getPreferredVoice();
+    speak(`Voice set to ${resolved?.name || name}. Jarvis standing by.`);
+    toast({
+      title: "Voice updated",
+      description: `Now speaking with: ${resolved?.name || "System default"}`,
+    });
+  };
 
   const toggle = () => {
     const next = !on;
@@ -99,6 +133,42 @@ function VoiceCard() {
           </Button>
         </div>
       </div>
+      <div className="mt-3 pt-3 border-t border-sand/70">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="min-w-[240px]">
+            <Label className="text-[11px] text-taupe">Assistant voice</Label>
+            <Select
+              value={voicePref}
+              onChange={(e) => pickVoice(e.target.value)}
+              className="h-9 mt-1"
+            >
+              <option value="auto-male">🎙 Auto — Jarvis (male, recommended)</option>
+              <option value="auto-female">Auto — female assistant</option>
+              {voices.map((v) => (
+                <option key={v.name} value={v.name}>
+                  {v.name} ({v.lang})
+                </option>
+              ))}
+            </Select>
+            <p className="text-[10px] text-taupe mt-1">
+              Active: <span className="font-semibold text-mocha">{getPreferredVoice()?.name || "System default"}</span>
+              {" · "}male voices like Microsoft David / Guy or Google UK Male give the Jarvis sound.
+            </p>
+          </div>
+          <div>
+            <Label className="text-[11px] text-taupe">Hear it</Label>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-1"
+              onClick={() => speak("Jarvis online. All systems operational, sir.")}
+            >
+              🔊 Speak sample
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <div className="mt-3 pt-3 border-t border-sand/70">
         <p className="text-[11px] font-semibold text-taupe uppercase tracking-wide mb-1.5">Say things like</p>
         <div className="flex flex-wrap gap-1.5">
