@@ -321,11 +321,17 @@ export const auth = {
 };
 
 // --- admin user management (same easy flow as vehicle registration) --------
+const PROTECTED_ROLES = ["Admin", "Super Admin"];
+
 export const userAdmin = {
   list() {
     return read(USERS_COL);
   },
-  create({ full_name, email, password, role = "Staff", status = "Active" }) {
+  create({ full_name, email, password, role = "Staff", status = "Active" }, actorRole = "Staff") {
+    if (role === "Admin" && actorRole !== "Super Admin")
+      throw new Error("Only the Super Admin can grant Admin access.");
+    if (role === "Super Admin")
+      throw new Error("There can only be one Super Admin.");
     const users = read(USERS_COL);
     if (users.some((x) => x.email === email))
       throw new Error("An account with this email already exists");
@@ -342,22 +348,45 @@ export const userAdmin = {
     write(USERS_COL, users);
     return u;
   },
-  update(id, patch) {
+  update(id, patch, actorRole = "Staff") {
     const users = read(USERS_COL);
     const i = users.findIndex((x) => x.id === id);
     if (i === -1) throw new Error("User not found");
-    users[i] = { ...users[i], ...patch };
+    const u = users[i];
+    if (u.role === "Super Admin") {
+      if (patch.role && patch.role !== "Super Admin")
+        throw new Error("The Super Admin role is fixed — there can only be one.");
+      if (actorRole !== "Super Admin")
+        throw new Error("Only the Super Admin can edit this account.");
+    }
+    if (patch.role === "Admin" && actorRole !== "Super Admin")
+      throw new Error("Only the Super Admin can grant Admin access.");
+    if (patch.role === "Super Admin")
+      throw new Error("There can only be one Super Admin.");
+    users[i] = { ...u, ...patch };
+    // never strand the fleet without an admin
+    const admins = users.filter(
+      (x) => PROTECTED_ROLES.includes(x.role) && x.status === "Active"
+    );
+    if (PROTECTED_ROLES.includes(u.role) && u.status === "Active" && admins.length === 0)
+      throw new Error("Can't remove the last active admin account.");
     write(USERS_COL, users);
     return users[i];
   },
-  remove(id, currentEmail) {
+  remove(id, currentEmail, actorRole = "Staff") {
     const users = read(USERS_COL);
     const u = users.find((x) => x.id === id);
     if (!u) return;
     if (u.email === currentEmail)
       throw new Error("You can't delete the account you're signed in with.");
-    const admins = users.filter((x) => x.role === "Admin" && x.status === "Active" && x.id !== id);
-    if (u.role === "Admin" && admins.length === 0)
+    if (u.role === "Super Admin")
+      throw new Error("The Super Admin account cannot be deleted.");
+    if (u.role === "Admin" && actorRole !== "Super Admin")
+      throw new Error("Only the Super Admin can remove an Admin account.");
+    const admins = users.filter(
+      (x) => PROTECTED_ROLES.includes(x.role) && x.status === "Active" && x.id !== id
+    );
+    if (PROTECTED_ROLES.includes(u.role) && u.status === "Active" && admins.length === 0)
       throw new Error("Can't delete the last active admin account.");
     write(
       USERS_COL,
@@ -380,7 +409,16 @@ function isoDaysAgo(n, h, m) {
 }
 
 export function seedIfNeeded() {
-  if (read(USERS_COL).length) return;
+  // Migration: the owner account is always the Super Admin (one-way).
+  const existing = read(USERS_COL);
+  if (existing.length) {
+    const owner = existing.find((u) => u.email === "demo@fleetflow.local");
+    if (owner && owner.role !== "Super Admin") {
+      owner.role = "Super Admin";
+      write(USERS_COL, existing);
+    }
+    return;
+  }
 
   write(USERS_COL, [
     {
@@ -388,7 +426,7 @@ export function seedIfNeeded() {
       full_name: "Rhex Jun Villahermosa",
       email: "demo@fleetflow.local",
       password: "demo1234",
-      role: "Admin",
+      role: "Super Admin",
       status: "Active",
       created_date: nowIso(),
     },

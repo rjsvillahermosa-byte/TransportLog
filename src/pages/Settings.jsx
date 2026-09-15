@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Cloud,
   CloudOff,
+  Crown,
   Droplets,
+  ImagePlus,
+  Loader2,
   Lock,
   Palette,
   Pencil,
@@ -13,9 +16,10 @@ import {
   Trash2,
   UserPlus,
 } from "lucide-react";
-import { auth, drainQueue, resetTransportData, useOnline, usePendingCount, userAdmin } from "../lib/db";
+import { auth, drainQueue, integrations, resetTransportData, useOnline, usePendingCount, userAdmin } from "../lib/db";
 import { getFuelConfig, saveFuelConfig } from "../lib/fuel";
 import { applyTheme, DEFAULT_THEME, getTheme, resetTheme, saveTheme, THEME_PRESETS } from "../lib/theme";
+import { applyBranding, DEFAULT_BRANDING, FONT_OPTIONS, getBranding, resetBranding, saveBranding } from "../lib/branding";
 import { Button, Input, Label, Modal, Select, Spinner } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { cn } from "../lib/utils";
@@ -94,6 +98,155 @@ function VoiceCard() {
   );
 }
 
+function BrandingCard() {
+  const toast = useToast();
+  const [draft, setDraft] = useState(getBranding());
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
+
+  const apply = (next) => {
+    setDraft(next);
+    applyBranding(next); // live preview across the app
+  };
+
+  const pickLogo = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { file_url } = await integrations.Core.UploadFile({ file });
+      apply({ ...draft, logo: file_url });
+    } catch (err) {
+      console.error("Logo upload failed:", err);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const save = () => {
+    saveBranding(draft);
+    toast({
+      title: "Branding applied",
+      description: "Logo, name, font and text size now show for everyone on this device.",
+    });
+  };
+
+  const reset = () => {
+    resetBranding();
+    setDraft({ ...DEFAULT_BRANDING });
+    toast({ title: "Branding reset", description: "Back to the default TransportLog look." });
+  };
+
+  return (
+    <div className="bg-white rounded-3xl shadow-card p-5 mb-6">
+      <div className="flex items-start justify-between flex-wrap gap-2 mb-1">
+        <div>
+          <h3 className="text-sm font-semibold text-cocoa flex items-center gap-2">
+            <Crown className="w-4 h-4 text-accent-dark" /> Branding Studio
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full border bg-accent/15 text-accent-dark border-accent/40">
+              Super Admin
+            </span>
+          </h3>
+          <p className="text-xs text-taupe mt-1">
+            Make the app yours — upload your hotel logo, set the app name, pick the font and text size.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={reset}>
+            <RotateCcw className="w-3.5 h-3.5" /> Reset
+          </Button>
+          <Button variant="primary" size="sm" onClick={save}>
+            Apply Branding
+          </Button>
+        </div>
+      </div>
+
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickLogo} />
+
+      <div className="flex flex-wrap items-start gap-5 mt-4">
+        {/* logo box */}
+        <div>
+          <Label className="text-[11px] text-taupe">Logo</Label>
+          {draft.logo ? (
+            <div className="mt-1.5 relative">
+              <img src={draft.logo} alt="Logo" className="w-16 h-16 rounded-2xl object-cover border border-sand bg-white" />
+              <div className="flex gap-1.5 mt-1.5">
+                <button onClick={() => fileRef.current?.click()} className="text-[11px] font-semibold text-brand hover:underline">
+                  Replace
+                </button>
+                <span className="text-sand">·</span>
+                <button onClick={() => apply({ ...draft, logo: "" })} className="text-[11px] font-semibold text-red-500 hover:underline">
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="mt-1.5 w-16 h-16 rounded-2xl border-2 border-dashed border-sand flex flex-col items-center justify-center text-taupe hover:border-brand/50 hover:text-brand transition-colors"
+            >
+              {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImagePlus className="w-5 h-5" />}
+            </button>
+          )}
+        </div>
+
+        {/* name + font + size */}
+        <div className="space-y-3 min-w-[220px] flex-1">
+          <div>
+            <Label className="text-[11px] text-taupe">App name</Label>
+            <Input
+              value={draft.name}
+              onChange={(e) => apply({ ...draft, name: e.target.value })}
+              placeholder="TransportLog"
+              className="h-9 mt-1"
+            />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <div className="flex-1 min-w-[180px]">
+              <Label className="text-[11px] text-taupe">Font</Label>
+              <Select
+                value={draft.font}
+                onChange={(e) => apply({ ...draft, font: e.target.value })}
+                className="h-9 mt-1"
+              >
+                {FONT_OPTIONS.map((f) => (
+                  <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+                    {f.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[11px] text-taupe">Text size — {draft.size}px</Label>
+              <input
+                type="range"
+                min="14"
+                max="18"
+                step="0.5"
+                value={draft.size}
+                onChange={(e) => apply({ ...draft, size: Number(e.target.value) })}
+                className="w-40 mt-3 accent-[rgb(var(--brand))]"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* live preview strip */}
+      <div className="mt-4 pt-4 border-t border-sand/70 flex flex-wrap items-center gap-3">
+        <span className="text-[11px] font-semibold text-taupe uppercase tracking-wide">Preview:</span>
+        <span className="font-heading font-extrabold tracking-wider uppercase text-cocoa">{draft.name || "Your App"}</span>
+        <span className="inline-flex items-center rounded-lg bg-brand px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white">
+          Primary
+        </span>
+        <span className="text-xs text-taupe">Applies live — tap “Apply Branding” to keep it.</span>
+      </div>
+    </div>
+  );
+}
+
 const emptyUser = {
   full_name: "",
   email: "",
@@ -102,10 +255,13 @@ const emptyUser = {
   status: "Active",
 };
 
-function UserModal({ open, onClose, initial, currentEmail, onSaved }) {
+function UserModal({ open, onClose, initial, currentEmail, actorRole, onSaved }) {
   const [form, setForm] = useState(initial || emptyUser);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const isSuperRow = initial?.role === "Super Admin";
+  const roleOptions =
+    actorRole === "Super Admin" ? ["Staff", "Supervisor", "Admin"] : ["Staff", "Supervisor"];
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const save = async () => {
@@ -119,9 +275,9 @@ function UserModal({ open, onClose, initial, currentEmail, onSaved }) {
       if (initial?.id) {
         const patch = { ...form };
         if (!patch.password) delete patch.password; // blank = keep current
-        userAdmin.update(initial.id, patch);
+        userAdmin.update(initial.id, patch, actorRole);
       } else {
-        userAdmin.create(form); // blank password = auto-generated
+        userAdmin.create(form, actorRole); // blank password = auto-generated
       }
       setBusy(false);
       onSaved();
@@ -153,11 +309,28 @@ function UserModal({ open, onClose, initial, currentEmail, onSaved }) {
         </div>
         <div className="space-y-1.5">
           <Label>Role</Label>
-          <Select value={form.role} onChange={set("role")}>
-            <option value="Staff">Staff</option>
-            <option value="Supervisor">Supervisor — can build & print reports</option>
-            <option value="Admin">Admin</option>
+          <Select
+            value={form.role}
+            onChange={set("role")}
+            disabled={isSuperRow}
+            className={isSuperRow ? "opacity-70" : ""}
+          >
+            {roleOptions.map((r) => (
+              <option key={r} value={r}>
+                {r === "Supervisor"
+                  ? "Supervisor — can build & print reports"
+                  : r === "Admin"
+                  ? "Admin — manages the system"
+                  : r}
+              </option>
+            ))}
           </Select>
+          {actorRole !== "Super Admin" && !isSuperRow && (
+            <p className="text-[10px] text-taupe">Only the Super Admin can grant the Admin role.</p>
+          )}
+          {isSuperRow && (
+            <p className="text-[10px] text-taupe">👑 Super Admin — there can only be one, and it's you.</p>
+          )}
         </div>
         <div className="col-span-2 space-y-1.5">
           <Label>Status</Label>
@@ -224,7 +397,7 @@ export default function Settings({ user }) {
   const removeUser = (u) => {
     if (!window.confirm(`Delete the account for ${u.full_name}? They will no longer be able to sign in.`)) return;
     try {
-      userAdmin.remove(u.id, user.email);
+      userAdmin.remove(u.id, user.email, user.role);
       refreshUsers();
       toast({ title: "User deleted" });
     } catch (e2) {
@@ -369,11 +542,20 @@ export default function Settings({ user }) {
         </div>
       </div>
 
+      {user.role === "Super Admin" && <BrandingCard />}
+
       {/* User accounts — quick enrollment, same flow as vehicle registration */}
       <div className="bg-white rounded-3xl shadow-card p-5 mb-6">
         <div className="flex items-start justify-between mb-1">
           <div>
-            <h3 className="text-sm font-semibold text-cocoa">User Accounts</h3>
+            <h3 className="text-sm font-semibold text-cocoa">
+              User Accounts
+              {user.role === "Super Admin" && (
+                <span className="ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border bg-accent/15 text-accent-dark border-accent/40 align-middle">
+                  👑 you are the Super Admin
+                </span>
+              )}
+            </h3>
             <p className="text-xs text-taupe">
               Enroll your team in seconds — leave the password blank to auto-generate one.
               Admins see this Settings area. Supervisors get the Reports builder. Staff see neither.
@@ -402,7 +584,9 @@ export default function Settings({ user }) {
                 <span
                   className={cn(
                     "text-[10px] font-medium px-1.5 py-0.5 rounded-full border",
-                    u.role === "Admin"
+                    u.role === "Super Admin"
+                      ? "bg-accent/15 text-accent-dark border-accent/40"
+                      : u.role === "Admin"
                       ? "bg-orange/10 text-orange border-orange/30"
                       : "bg-mint/60 text-taupe border-sand"
                   )}
@@ -528,6 +712,7 @@ export default function Settings({ user }) {
           onClose={() => setUserModal(null)}
           initial={userModal.initial}
           currentEmail={user.email}
+          actorRole={user.role}
           onSaved={() => {
             setUserModal(null);
             refreshUsers();

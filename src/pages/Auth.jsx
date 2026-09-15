@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Car, Mail } from "lucide-react";
 import { Button, Input, Label } from "../components/ui";
 import { auth } from "../lib/db";
+import { useBranding } from "../lib/branding";
 
 function GoogleIcon() {
   return (
@@ -16,20 +17,25 @@ function GoogleIcon() {
 }
 
 export function AuthLayout({ icon: Icon = Car, title, subtitle, footer, children }) {
+  const brand = useBranding();
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
-          <div className="w-14 h-14 rounded-3xl bg-mint flex items-center justify-center mb-3 shadow-card">
-            <Icon className="w-7 h-7 text-brand" />
-          </div>
+          {brand.logo ? (
+            <img src={brand.logo} alt="Logo" className="w-14 h-14 rounded-3xl object-cover border border-sand mb-3 shadow-card" />
+          ) : (
+            <div className="w-14 h-14 rounded-3xl bg-mint flex items-center justify-center mb-3 shadow-card">
+              <Icon className="w-7 h-7 text-brand" />
+            </div>
+          )}
           <h1 className="text-2xl font-heading font-bold text-cocoa">{title}</h1>
           <p className="text-sm text-taupe mt-1">{subtitle}</p>
         </div>
         <div className="bg-white rounded-3xl border border-sand/70 p-6 shadow-card">{children}</div>
         {footer && <div className="text-center text-sm text-taupe mt-4">{footer}</div>}
         <p className="text-center text-xs text-taupe mt-6">
-          TransportLog — intelligent hotel transport management
+          {brand.name} — intelligent hotel transport management
         </p>
       </div>
     </div>

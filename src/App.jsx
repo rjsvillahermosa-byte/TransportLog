@@ -56,10 +56,10 @@ function Shell() {
   return (
     <Layout user={user}>
       {/* Role gates — login-based, so they behave the same on any device. */}
-      {location.pathname === "/settings" && user.role !== "Admin" ? (
+      {location.pathname === "/settings" && !["Super Admin", "Admin"].includes(user.role) ? (
         <AdminOnlyNotice />
       ) : location.pathname === "/reports" &&
-        !["Admin", "Supervisor"].includes(user.role) ? (
+        !["Super Admin", "Admin", "Supervisor"].includes(user.role) ? (
         <AdminOnlyNotice
           title="Supervisor access only"
           message="The report builder is limited to Supervisor and Admin accounts. Ask your administrator for access."

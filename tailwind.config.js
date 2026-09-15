@@ -26,8 +26,8 @@ export default {
         taupe: "#8A8378",
       },
       fontFamily: {
-        heading: ["Poppins", "ui-sans-serif", "system-ui", "sans-serif"],
-        body: ["Poppins", "ui-sans-serif", "system-ui", "sans-serif"],
+        heading: ["var(--font-brand)", "ui-sans-serif", "system-ui", "sans-serif"],
+        body: ["var(--font-brand)", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       boxShadow: {
         card: "0 4px 12px rgba(0,0,0,0.06)",
