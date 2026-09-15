@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Car,
@@ -129,6 +130,7 @@ export default function Layout({ user, children }) {
   const brandRef = useRef(null);
   const rightRef = useRef(null);
   const measureRef = useRef(null);
+  const moreWrapRef = useRef(null);
   const isSuper = user?.role === "Super Admin";
   const isAdmin = isSuper || user?.role === "Admin";
   const canReports = isAdmin || user?.role === "Supervisor";
@@ -244,7 +246,8 @@ export default function Layout({ user, children }) {
               </span>
             </div>
 
-            <nav className="hidden lg:flex items-center gap-0.5 flex-1 min-w-0 justify-end overflow-hidden">
+            <nav className="hidden lg:flex items-center gap-0.5 flex-1 min-w-0 justify-end">
+              {/* overflow must stay visible — the More dropdown renders here */}
               {visibleNav.map((item) => {
                 const active = location.pathname === item.path;
                 return (
@@ -261,7 +264,7 @@ export default function Layout({ user, children }) {
                 );
               })}
               {overflowNav.length > 0 && (
-                <div className="relative">
+                <div className="relative" ref={moreWrapRef}>
                   <Button
                     variant={overflowNav.some((i) => i.path === location.pathname) ? "default" : "ghost"}
                     size="sm"
@@ -271,29 +274,41 @@ export default function Layout({ user, children }) {
                     More
                     <ChevronDown className="w-3.5 h-3.5" />
                   </Button>
-                  {moreOpen && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
-                      <div className="absolute right-0 top-9 z-50 w-52 bg-white rounded-2xl shadow-lift border border-sand/70 p-1.5">
-                        {overflowNav.map((item) => {
-                          const active = location.pathname === item.path;
-                          return (
-                            <Link
-                              key={item.path}
-                              to={item.path}
-                              className={cn(
-                                "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold",
-                                active ? "bg-brand text-white" : "text-mocha hover:bg-mint/60"
-                              )}
-                            >
-                              <item.icon className="w-4 h-4" />
-                              {item.label}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
+                  {moreOpen &&
+                    createPortal(
+                      <>
+                        {/* full-screen click-away shield, above everything */}
+                        <div
+                          className="fixed inset-0 z-[190]"
+                          onClick={() => setMoreOpen(false)}
+                        />
+                        <div
+                          className="fixed z-[200] w-52 bg-white rounded-2xl shadow-lift border border-sand/70 p-1.5"
+                          style={{
+                            top: (moreWrapRef.current?.getBoundingClientRect().bottom ?? 48) + 6,
+                            right: Math.max(8, window.innerWidth - (moreWrapRef.current?.getBoundingClientRect().right ?? 16)),
+                          }}
+                        >
+                          {overflowNav.map((item) => {
+                            const active = location.pathname === item.path;
+                            return (
+                              <Link
+                                key={item.path}
+                                to={item.path}
+                                className={cn(
+                                  "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold",
+                                  active ? "bg-brand text-white" : "text-mocha hover:bg-mint/60"
+                                )}
+                              >
+                                <item.icon className="w-4 h-4" />
+                                {item.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </>,
+                      document.body
+                    )}
                 </div>
               )}
             </nav>
