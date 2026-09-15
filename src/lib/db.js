@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { supabaseActive, getSupabaseClient } from "./supabaseClient";
 
 // ---------------------------------------------------------------------------
 // Mock Base44 backend — mirrors the live app's SDK surface
@@ -8,6 +9,199 @@ import { useEffect, useState } from "react";
 // ---------------------------------------------------------------------------
 
 const PREFIX = "fleetflow";
+
+// ---------------------------------------------------------------------------
+// Supabase adapters — same surface as the local entity/auth implementations.
+// Enabled when the Super Admin connects a project (Settings → Database).
+// ---------------------------------------------------------------------------
+const SB_TABLES = {
+  TransportRequest: "transport_requests",
+  MileageLog: "mileage_logs",
+  Vehicle: "vehicles",
+  Driver: "drivers",
+  ServiceLog: "service_logs",
+  FuelLog: "fuel_logs",
+  IncidentLog: "incidents",
+  User: "profiles",
+};
+
+function sbEntity(entityName) {
+  const table = SB_TABLES[entityName];
+  const sb = getSupabaseClient();
+  const order = (q, sort) => {
+    if (!sort) return q;
+    const desc = sort.startsWith("-");
+    return q.order(sort.slice(1), { ascending: !desc });
+  };
+  const limit = (q, n) => (n ? q.limit(n) : q);
+  return {
+    async list(sort, n = 200) {
+      const { data, error } = await limit(order(sb.from(table).select("*"), sort), n);
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    async filter(query = {}, sort, n = 200) {
+      let q = sb.from(table).select("*");
+      for (const [k, v] of Object.entries(query)) if (v != null) q = q.eq(k, v);
+      const { data, error } = await limit(order(q, sort), n);
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    async get(id) {
+      const { data, error } = await sb.from(table).select("*").eq("id", id).single();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    async create(data) {
+      const { data: row, error } = await sb.from(table).insert(data).select().single();
+      if (error) throw new Error(error.message);
+      return row;
+    },
+    async update(id, data) {
+      const { data: row, error } = await sb.from(table).update(data).eq("id", id).select().single();
+      if (error) throw new Error(error.message);
+      return row;
+    },
+    async delete(id) {
+      const { error } = await sb.from(table).delete().eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    async deleteMany() {
+      const { error } = await sb.from(table).delete().not("id", "is", null);
+      if (error) throw new Error(error.message);
+    },
+  };
+}
+
+function supabaseEntities() {
+  const out = {};
+  for (const name of Object.keys(SB_TABLES)) out[name] = sbEntity(name);
+  return out;
+}
+
+const supabaseAuth = {
+  async currentUser() {
+    const sb = getSupabaseClient();
+    const { data } = await sb.auth.getSession();
+    const session = data?.session;
+    if (!session) return null;
+    const { data: prof } = await sb
+      .from("profiles")
+      .select("*")
+      .eq("id", session.user.id)
+      .single();
+    if (prof && prof.status === "Disabled") {
+      await sb.auth.signOut();
+      return null;
+    }
+    return (
+      prof ?? {
+        id: session.user.id,
+        email: session.user.email,
+        full_name: session.user.email?.split("@")[0] || "User",
+        role: "Staff",
+        status: "Active",
+      }
+    );
+  },
+  async loginViaEmailPassword(email, password) {
+    const sb = getSupabaseClient();
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
+    return true;
+  },
+  async loginWithProvider() {
+    const sb = getSupabaseClient();
+    const { error } = await sb.auth.signInWithOAuth({ provider: "google" });
+    if (error) throw new Error(error.message);
+    return true; // OAuth redirects — session lands after the round-trip
+  },
+  async register({ full_name, email, password }) {
+    const sb = getSupabaseClient();
+    const { error } = await sb.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name } },
+    });
+    if (error) throw new Error(error.message);
+    // profile auto-created by the on_auth_user_created trigger (Staff)
+    return true;
+  },
+  async resetPasswordRequest(email) {
+    const sb = getSupabaseClient();
+    const { error } = await sb.auth.resetPasswordForEmail(email);
+    if (error) throw new Error(error.message);
+  },
+  async resetPassword({ new_password }) {
+    const sb = getSupabaseClient();
+    const { error } = await sb.auth.updateUser({ password: new_password });
+    if (error) throw new Error(error.message);
+  },
+  logout() {
+    getSupabaseClient()?.auth.signOut();
+  },
+};
+
+const supabaseUserAdmin = {
+  list() {
+    // async-compatible caller uses .map sync — return rows; Settings refreshes
+    // after every mutation, and this path is only hit in Supabase mode where
+    // loadUsers awaits. (Made async below via userAdmin proxy wrapper.)
+    return read("users");
+  },
+};
+
+const supabaseUserAdminAsync = {
+  async list() {
+    const sb = getSupabaseClient();
+    const { data, error } = await sb.from("profiles").select("*").order("created_date");
+    if (error) throw new Error(error.message);
+    return data.map((p) => ({
+      id: p.id,
+      full_name: p.full_name,
+      email: p.email,
+      role: p.role,
+      status: p.status,
+      created_date: p.created_date,
+    }));
+  },
+  async create() {
+    throw new Error(
+      "In Supabase mode, invite users from Supabase Dashboard → Authentication → Add user (the profile is created automatically), then promote them here."
+    );
+  },
+  async update(id, patch, actorRole = "Staff") {
+    const sb = getSupabaseClient();
+    const allowed = {};
+    if (patch.full_name != null) allowed.full_name = patch.full_name;
+    if (patch.role != null) allowed.role = patch.role;
+    if (patch.status != null) allowed.status = patch.status;
+    if (allowed.role === "Admin" && actorRole !== "Super Admin")
+      throw new Error("Only the Super Admin can grant Admin access.");
+    if (allowed.role === "Super Admin")
+      throw new Error("There can only be one Super Admin.");
+    const { data: prof } = await sb.from("profiles").select("role").eq("id", id).single();
+    if (prof?.role === "Super Admin" && actorRole !== "Super Admin")
+      throw new Error("Only the Super Admin can edit this account.");
+    const { data, error } = await sb.from("profiles").update(allowed).eq("id", id).select().single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+  async remove(id, currentEmail, actorRole = "Staff") {
+    // Auth users can't be deleted with the anon key — disable instead.
+    const sb = getSupabaseClient();
+    const { data: prof } = await sb.from("profiles").select("role, email").eq("id", id).single();
+    if (prof?.role === "Super Admin") throw new Error("The Super Admin account cannot be deleted.");
+    if (prof?.role === "Admin" && actorRole !== "Super Admin")
+      throw new Error("Only the Super Admin can remove an Admin account.");
+    if (prof?.email === currentEmail)
+      throw new Error("You can't delete the account you're signed in with.");
+    const { error } = await sb.from("profiles").update({ status: "Disabled" }).eq("id", id);
+    if (error) throw new Error(error.message);
+    return "disabled";
+  },
+};
+
 const K = (name) => `${PREFIX}:${name}`;
 
 const read = (col, fallback = []) => {
@@ -184,6 +378,15 @@ export const integrations = {
   Core: {
     // Original uploads to Base44 media; here we keep a downscaled data URL.
     async UploadFile({ file }) {
+      if (supabaseActive()) {
+        const sb = getSupabaseClient();
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+        const path = `uploads/${uid()}.${ext}`;
+        const { error } = await sb.storage.from("fleetflow-media").upload(path, file);
+        if (error) throw new Error(error.message);
+        const { data } = sb.storage.from("fleetflow-media").getPublicUrl(path);
+        return { file_url: data.publicUrl };
+      }
       await delay(400);
       const file_url = await fileToDownscaledDataUrl(file);
       return { file_url };
@@ -257,7 +460,8 @@ export const integrations = {
 const USERS_COL = "users";
 const SESSION_KEY = K("session");
 
-export const auth = {
+const localAuth = {
+  __local: true,
   async currentUser() {
     const email = localStorage.getItem(SESSION_KEY);
     if (!email) return null;
@@ -320,10 +524,16 @@ export const auth = {
   },
 };
 
+// auth: local implementation when offline, Supabase Auth when connected.
+export const auth = new Proxy(
+  {},
+  { get: (_, p) => (supabaseActive() ? supabaseAuth : localAuth)[p] }
+);
+
 // --- admin user management (same easy flow as vehicle registration) --------
 const PROTECTED_ROLES = ["Admin", "Super Admin"];
 
-export const userAdmin = {
+const localUserAdmin = {
   list() {
     return read(USERS_COL);
   },
@@ -409,6 +619,9 @@ function isoDaysAgo(n, h, m) {
 }
 
 export function seedIfNeeded() {
+  // Supabase mode: schema + accounts live in the cloud — nothing to seed.
+  if (supabaseActive()) return;
+
   // Migration: the owner account is always the Super Admin (one-way).
   const existing = read(USERS_COL);
   if (existing.length) {
@@ -828,6 +1041,17 @@ export function seedIfNeeded() {
 }
 
 export function resetTransportData() {
+  if (supabaseActive()) {
+    const sb = getSupabaseClient();
+    Promise.all(
+      ["transport_requests", "mileage_logs", "service_logs", "fuel_logs", "incidents"].map((t) =>
+        sb.from(t).delete().not("id", "is", null)
+      )
+    )
+      .then(() => emitChange())
+      .catch((e) => console.error("Supabase reset failed:", e.message));
+    return;
+  }
   write("entity:TransportRequest", []);
   write("entity:MileageLog", []);
   write("entity:ServiceLog", []);
@@ -837,7 +1061,7 @@ export function resetTransportData() {
   emitChange();
 }
 
-export const api = {
+const localApi = {
   entities: {
     TransportRequest: makeEntity("TransportRequest"),
     MileageLog: makeEntity("MileageLog"),
@@ -848,9 +1072,38 @@ export const api = {
     IncidentLog: makeEntity("IncidentLog"),
     User: makeEntity("User"),
   },
-  auth,
+  auth: localAuth,
   integrations,
 };
+
+function activeApi() {
+  return supabaseActive()
+    ? { entities: supabaseEntities(), auth: supabaseAuth, integrations }
+    : localApi;
+}
+
+// Same surface everywhere; pages never know which backend answered.
+export const api = new Proxy(
+  {},
+  {
+    get: (_, p) => {
+      if (p === "auth") return auth; // mode-routed proxy above
+      return activeApi()[p];
+    },
+  }
+);
+
+// userAdmin: routed per mode. Supabase mode is async — Settings awaits it.
+export const userAdmin = new Proxy(
+  {},
+  {
+    get: (_, p) => {
+      const target = supabaseActive() ? supabaseUserAdminAsync : localUserAdmin;
+      const v = target[p];
+      return typeof v === "function" ? v.bind(target) : v;
+    },
+  }
+);
 
 // --- hooks -----------------------------------------------------------------
 export function useOnline() {
