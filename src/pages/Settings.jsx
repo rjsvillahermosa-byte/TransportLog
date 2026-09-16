@@ -577,20 +577,16 @@ export default function Settings({ user }) {
     }
   };
 
-  const addDemoAccount = () => {
+  const addDemoAccount = async () => {
     try {
-      const acc = userAdmin.addDemoUser
-        ? userAdmin.addDemoUser()
-        : Promise.resolve(userAdmin.addDemoUserAsync?.());
-      Promise.resolve(acc).then((a) => {
-        refreshUsers();
-        toast({
-          title: "🎭 Demo account created",
-          description: `Email: ${a.email} · Password: ${a.password}`,
-        });
+      const acc = await userAdmin.addDemoUser();
+      refreshUsers();
+      toast({
+        title: "🎭 Demo account created",
+        description: `Email: ${acc.email} · Password: ${acc.password}`,
       });
     } catch (e2) {
-      alert(e2.message);
+      toast({ title: "Couldn't create demo account", description: e2.message });
     }
   };
 
@@ -735,7 +731,7 @@ export default function Settings({ user }) {
 
       {/* User accounts — quick enrollment, same flow as vehicle registration */}
       <div className="bg-white rounded-3xl shadow-card p-5 mb-6">
-        <div className="flex items-start justify-between mb-1">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-1">
           <div>
             <h3 className="text-sm font-semibold text-cocoa">
               User Accounts
@@ -745,16 +741,16 @@ export default function Settings({ user }) {
                 </span>
               )}
             </h3>
-            <p className="text-xs text-taupe">
+            <p className="text-xs text-taupe mt-1">
               Enroll your team in seconds — leave the password blank to auto-generate one.
               Admins see this Settings area. Supervisors get the Reports builder. Staff see neither.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-none">
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setUserModal({ demo: true })}
+              onClick={addDemoAccount}
               title="One click — creates a throwaway Staff account for testing"
             >
               🎭 Add Demo

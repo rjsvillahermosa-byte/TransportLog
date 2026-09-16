@@ -203,8 +203,10 @@ export default function Layout({ user, children }) {
     <ToastCtx.Provider value={toast}>
       <div className="min-h-screen">
         {/* safe-area padding keeps the header below the phone status bar */}
+        {/* guaranteed clearance below the phone status bar, even when the
+            device reports no safe-area inset */}
         <header
-          className="bg-cream/85 backdrop-blur border-b border-sand sticky top-0 z-50 print:hidden pt-[env(safe-area-inset-top)]"
+          className="bg-cream/85 backdrop-blur border-b border-sand sticky top-0 z-50 print:hidden pt-[max(1.75rem,env(safe-area-inset-top))]"
         >
           <div ref={headerInnerRef} className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
             {/* hidden measuring strip — zero-footprint wrapper so it never
