@@ -224,7 +224,7 @@ export default function VoiceAssistant({ user }) {
       <button
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "fixed bottom-4 left-4 z-[90] w-12 h-12 rounded-full shadow-lift flex items-center justify-center transition-all print:hidden",
+          "fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 z-[90] w-12 h-12 rounded-full shadow-lift flex items-center justify-center transition-all print:hidden",
           open ? "bg-cocoa text-white" : "bg-brand text-white hover:bg-brand-dark",
           listening && "animate-pulse ring-4 ring-accent/50"
         )}
@@ -234,7 +234,7 @@ export default function VoiceAssistant({ user }) {
       </button>
 
       {open && (
-        <div className="fixed bottom-20 left-4 z-[90] w-[calc(100vw-2rem)] max-w-sm bg-white rounded-3xl shadow-lift border border-sand/70 overflow-hidden print:hidden">
+        <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-4 z-[90] w-[calc(100vw-2rem)] max-w-sm bg-white rounded-3xl shadow-lift border border-sand/70 overflow-hidden print:hidden">
           <div className="bg-brand text-white px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4" />

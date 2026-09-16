@@ -44,7 +44,7 @@ export const useToast = () => useContext(ToastCtx);
 
 function ToastHost({ toasts, dismiss }) {
   return (
-    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 w-[calc(100vw-2rem)] max-w-sm print:hidden">
+    <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-[100] flex flex-col gap-2 w-[calc(100vw-2rem)] max-w-sm print:hidden">
       {toasts.map((t) => (
         <div
           key={t.id}
@@ -202,7 +202,10 @@ export default function Layout({ user, children }) {
   return (
     <ToastCtx.Provider value={toast}>
       <div className="min-h-screen">
-        <header className="bg-cream/85 backdrop-blur border-b border-sand sticky top-0 z-50 print:hidden">
+        {/* safe-area padding keeps the header below the phone status bar */}
+        <header
+          className="bg-cream/85 backdrop-blur border-b border-sand sticky top-0 z-50 print:hidden pt-[env(safe-area-inset-top)]"
+        >
           <div ref={headerInnerRef} className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
             {/* hidden measuring strip — zero-footprint wrapper so it never
                 expands the page on mobile (the pinch-zoom bug) */}
