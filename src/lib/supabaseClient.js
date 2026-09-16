@@ -52,10 +52,8 @@ export function getMode() {
   const stored = localStorage.getItem(MODE_KEY);
   if (stored === "supabase") return "supabase";
   if (stored === "local") return "local";
-  // pre-connected build (keys baked at build time) → auto-connect
-  const envUrl = import.meta.env?.VITE_SUPABASE_URL || "";
-  const envKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || "";
-  return envUrl && envKey ? "supabase" : "local";
+  // pre-connected build (baked BAKED config) → auto-connect
+  return isSupabaseConfigured() ? "supabase" : "local";
 }
 
 export function setMode(mode) {
