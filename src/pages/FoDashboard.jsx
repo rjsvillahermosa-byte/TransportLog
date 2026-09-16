@@ -162,7 +162,7 @@ export default function FoDashboard() {
           className="flex-none"
           onClick={() => {
             auth.logout();
-            navigate("/login");
+            window.location.href = "/login"; // full reload clears in-memory session
           }}
         >
           <LogOut className="w-4 h-4" /> Sign Out
