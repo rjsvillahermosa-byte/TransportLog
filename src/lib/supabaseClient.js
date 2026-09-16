@@ -22,38 +22,20 @@ const BAKED = {
 };
 
 export function getSupabaseConfig() {
-  const envUrl = import.meta.env?.VITE_SUPABASE_URL || BAKED.url;
-  const envKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || BAKED.anonKey;
-  try {
-    const raw = localStorage.getItem(CFG_KEY);
-    if (raw) {
-      const c = JSON.parse(raw);
-      return { url: c.url || envUrl, anonKey: c.anonKey || envKey };
-    }
-  } catch {}
-  return { url: envUrl, anonKey: envKey };
+  // The connection ships with the build — set up once, works everywhere.
+  return { url: BAKED.url, anonKey: BAKED.anonKey };
 }
 
-export function saveSupabaseConfig({ url, anonKey }) {
-  localStorage.setItem(CFG_KEY, JSON.stringify({ url: url.trim(), anonKey: anonKey.trim() }));
-}
-
-export function clearSupabaseConfig() {
-  localStorage.removeItem(CFG_KEY);
+export function saveSupabaseConfig() {
+  /* connection is baked into the build — nothing to save */
 }
 
 export function isSupabaseConfigured() {
-  const { url, anonKey } = getSupabaseConfig();
-  return !!(url && anonKey);
+  return true; // baked into every build
 }
 
 export function getMode() {
-  // explicit user choice always wins
-  const stored = localStorage.getItem(MODE_KEY);
-  if (stored === "supabase") return "supabase";
-  if (stored === "local") return "local";
-  // pre-connected build (baked BAKED config) → auto-connect
-  return isSupabaseConfigured() ? "supabase" : "local";
+  return "supabase";
 }
 
 export function setMode(mode) {

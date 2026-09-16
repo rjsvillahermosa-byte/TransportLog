@@ -2,11 +2,7 @@ import { useRef, useState } from "react";
 import {
   Cloud,
   CloudOff,
-  Copy,
   Crown,
-  Database,
-  FileText,
-  Plug,
   Droplets,
   ImagePlus,
   Loader2,
@@ -33,7 +29,6 @@ import {
   resetBranding,
   saveBranding,
 } from "../lib/branding";
-import { getMode, getSupabaseConfig, isSupabaseConfigured, SCHEMA_SQL, saveSupabaseConfig, supabaseActive, testConnection } from "../lib/supabaseClient";
 import { useEffect } from "react";
 import { Button, Input, Label, Modal, Select, Spinner } from "../components/ui";
 import { useToast } from "../components/Layout";
@@ -410,152 +405,6 @@ function BrandingCard() {
   );
 }
 
-function DatabaseCard() {
-  const toast = useToast();
-  const cfgInitial = getSupabaseConfig();
-  const [url, setUrl] = useState(cfgInitial.url || "");
-  const [anonKey, setAnonKey] = useState(cfgInitial.anonKey || "");
-  const [testing, setTesting] = useState(false);
-  const [showSql, setShowSql] = useState(false);
-  const sbOn = supabaseActive();
-
-  const save = () => {
-    if (!url.trim() || !anonKey.trim()) {
-      toast({ title: "Both fields required", description: "Paste the Project URL and the anon public key." });
-      return;
-    }
-    saveSupabaseConfig({ url, anonKey });
-    toast({ title: "Connection saved", description: "Run Test Connection, then enable Supabase mode." });
-  };
-
-  const test = async () => {
-    save();
-    setTesting(true);
-    const res = await testConnection();
-    setTesting(false);
-    toast(
-      res.ok
-        ? { title: "✓ Connected", description: "The project answered. You can enable Supabase mode." }
-        : { title: "Connection failed", description: res.error }
-    );
-  };
-
-  const toggleMode = () => {
-    if (sbOn) {
-      setMode("local");
-      toast({ title: "Local mode", description: "Data is stored on this device again." });
-      setTimeout(() => window.location.reload(), 600);
-    } else {
-      setMode("supabase");
-      toast({
-        title: "Supabase mode on",
-        description: "Register your owner account first — the first signup becomes Super Admin.",
-      });
-      setTimeout(() => window.location.reload(), 1200);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-3xl shadow-card p-5 mb-6">
-      <div className="flex items-start justify-between flex-wrap gap-2">
-        <div>
-          <h3 className="text-sm font-semibold text-cocoa flex items-center gap-2">
-            <Database className="w-4 h-4 text-brand" /> Database — Supabase
-            <span
-              className={cn(
-                "text-[10px] font-semibold px-1.5 py-0.5 rounded-full border",
-                sbOn
-                  ? "bg-mint/60 text-brand border-brand/30"
-                  : "bg-sand/60 text-taupe border-transparent"
-              )}
-            >
-              {sbOn ? "● connected — shared database" : "○ local mode — this device only"}
-            </span>
-          </h3>
-          <p className="text-xs text-taupe mt-1 max-w-xl">
-            Connect a Supabase project so every device shares one database (drivers, FO and the
-            owner see the same missions). Local mode keeps everything on this device — fully offline.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowSql(true)}>
-            <FileText className="w-3.5 h-3.5" /> Setup SQL
-          </Button>
-          <Button
-            variant={sbOn ? "destructive" : "primary"}
-            size="sm"
-            onClick={toggleMode}
-            disabled={!isSupabaseConfigured()}
-            title={!isSupabaseConfigured() ? "Save a project URL and anon key first" : ""}
-          >
-            {sbOn ? "Switch to Local" : "Enable Supabase"}
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-end gap-3 mt-4">
-        <div className="flex-1 min-w-[240px]">
-          <Label className="text-[11px] text-taupe">Project URL</Label>
-          <Input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://xxxx.supabase.co"
-            className="h-9 mt-1"
-          />
-        </div>
-        <div className="flex-1 min-w-[240px]">
-          <Label className="text-[11px] text-taupe">Anon public key</Label>
-          <Input
-            type="password"
-            value={anonKey}
-            onChange={(e) => setAnonKey(e.target.value)}
-            placeholder="eyJhbGciOi…"
-            className="h-9 mt-1"
-          />
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={save}>Save</Button>
-          <Button variant="secondary" size="sm" onClick={test} disabled={testing}>
-            {testing ? <Spinner className="w-3.5 h-3.5" /> : <Plug className="w-3.5 h-3.5" />} Test Connection
-          </Button>
-        </div>
-      </div>
-      <p className="text-[10px] text-taupe mt-2">
-        Keys: Supabase Dashboard → Project Settings → API. The anon key is safe in the app —
-        data is protected by row-level security in the setup SQL.
-      </p>
-
-      {showSql && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden shadow-lift">
-            <div className="flex items-center justify-between p-4 border-b border-sand/70">
-              <p className="text-sm font-bold text-cocoa">
-                Run this once: Supabase Dashboard → SQL Editor → New query
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(SCHEMA_SQL);
-                    toast({ title: "SQL copied" });
-                  }}
-                >
-                  <Copy className="w-3.5 h-3.5" /> Copy SQL
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowSql(false)}>Close</Button>
-              </div>
-            </div>
-            <pre className="overflow-auto p-4 text-[10px] leading-relaxed bg-cocoa text-mint/90 whitespace-pre">
-              {SCHEMA_SQL}
-            </pre>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 const emptyUser = {
   full_name: "",
   email: "",
@@ -860,7 +709,6 @@ export default function Settings({ user }) {
         </div>
       </div>
 
-      {user.role === "Super Admin" && <DatabaseCard />}
       {user.role === "Super Admin" && <BrandingCard />}
 
       {/* User accounts — quick enrollment, same flow as vehicle registration */}
