@@ -204,22 +204,24 @@ export default function Layout({ user, children }) {
       <div className="min-h-screen">
         <header className="bg-cream/85 backdrop-blur border-b border-sand sticky top-0 z-50 print:hidden">
           <div ref={headerInnerRef} className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
-            {/* hidden measuring strip — keeps true widths for the auto-fit math */}
-            <div
-              ref={measureRef}
-              aria-hidden="true"
-              className="absolute -top-[999px] left-0 flex gap-0.5 opacity-0 pointer-events-none"
-            >
-              {navItems.map((item) => (
-                <span
-                  key={item.path}
-                  data-navkey={item.path}
-                  className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg h-8 px-3 text-xs font-bold uppercase tracking-wide"
-                >
-                  <item.icon className="w-4 h-4" />
-                  {item.label}
-                </span>
-              ))}
+            {/* hidden measuring strip — zero-footprint wrapper so it never
+                expands the page on mobile (the pinch-zoom bug) */}
+            <div className="w-0 h-0 overflow-hidden" aria-hidden="true">
+              <div
+                ref={measureRef}
+                className="flex gap-0.5 opacity-0 pointer-events-none"
+              >
+                {navItems.map((item) => (
+                  <span
+                    key={item.path}
+                    data-navkey={item.path}
+                    className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg h-8 px-3 text-xs font-bold uppercase tracking-wide"
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                  </span>
+                ))}
+              </div>
             </div>
 
             <div ref={brandRef} className="flex items-center gap-2.5 min-w-0 flex-none">
@@ -235,7 +237,7 @@ export default function Layout({ user, children }) {
                   <Car className="w-5 h-5 text-brand" />
                 </div>
               )}
-              <span className="font-heading font-extrabold text-lg tracking-wider uppercase text-cocoa truncate max-w-[150px] xl:max-w-[240px]">
+              <span className="font-heading font-extrabold text-base sm:text-lg tracking-wider uppercase text-cocoa truncate max-w-[170px] xl:max-w-[240px]">
                 {!brand.logo && brand.name === "TransportLog" ? (
                   <>
                     Transport<span className="text-brand">Log</span>

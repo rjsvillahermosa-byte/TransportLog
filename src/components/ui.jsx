@@ -128,7 +128,7 @@ export function Tabs({ tabs, value, onChange, className }) {
   return (
     <div
       className={cn(
-        "inline-flex h-10 items-center justify-center rounded-lg bg-mint/60 p-1 text-taupe",
+        "inline-flex h-10 items-center justify-start rounded-lg bg-mint/60 p-1 text-taupe max-w-full overflow-x-auto",
         className
       )}
     >
@@ -137,7 +137,7 @@ export function Tabs({ tabs, value, onChange, className }) {
           key={t.value}
           onClick={() => onChange(t.value)}
           className={cn(
-            "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold transition-all",
+            "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold transition-all flex-none",
             value === t.value
               ? "bg-white text-brand shadow-sm"
               : "hover:text-mocha"

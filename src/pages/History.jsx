@@ -72,8 +72,8 @@ export default function History() {
       ) : trips.length === 0 ? (
         <EmptyState icon={HistoryIcon}>No completed trips for this period</EmptyState>
       ) : (
-        <div className="bg-white rounded-3xl shadow-card overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-3xl shadow-card overflow-hidden overflow-x-auto">
+          <table className="w-full text-sm min-w-[560px]">
             <thead>
               <tr className="bg-mint/40 border-b border-sand text-left text-xs text-taupe uppercase tracking-wide">
                 <th className="px-4 py-3">Date</th>
