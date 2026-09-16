@@ -549,8 +549,6 @@ export default function Settings({ user }) {
   };
   const [users, setUsers] = useState([]);
   const [userModal, setUserModal] = useState(null); // {initial?}
-  const dbMode = getMode();
-  const sbOn = dbMode === "supabase";
 
   const refreshUsers = () => {
     Promise.resolve(userAdmin.list())
@@ -765,8 +763,8 @@ export default function Settings({ user }) {
               size="sm"
               variant="primary"
               onClick={() => setUserModal({})}
-              disabled={supabaseActive()}
-              title={supabaseActive() ? "Invite users from the Supabase Dashboard in this mode" : ""}
+              disabled
+              title="In Supabase mode, invite users from the Supabase Dashboard → Authentication"
             >
               <UserPlus className="w-3.5 h-3.5" /> Add User
             </Button>
