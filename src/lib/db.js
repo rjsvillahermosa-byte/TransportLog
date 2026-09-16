@@ -9,6 +9,16 @@ import { supabaseActive, getSupabaseClient } from "./supabaseClient";
 // ---------------------------------------------------------------------------
 
 const PREFIX = "fleetflow";
+const SEQ_KEY = "fleetflow:missionseq";
+
+// Sequential mission numbers for real operations: 000001, 000002, …
+// The counter survives page reloads and only resets via Danger Zone.
+function nextMissionId() {
+  const n = (parseInt(localStorage.getItem(SEQ_KEY) || "0", 10) || 0) + 1;
+  localStorage.setItem(SEQ_KEY, String(n));
+  return String(n).padStart(6, "0");
+}
+export { nextMissionId };
 
 // ---------------------------------------------------------------------------
 // Supabase adapters — same surface as the local entity/auth implementations.
@@ -1060,6 +1070,7 @@ export function resetTransportData() {
   write("entity:FuelLog", []);
   write("entity:IncidentLog", []);
   write("sync:queue", []);
+  localStorage.removeItem("fleetflow:missionseq");
   emitChange();
 }
 

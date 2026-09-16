@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Briefcase, UserRound } from "lucide-react";
 import dayjs from "../lib/day";
-import { api, integrations } from "../lib/db";
+import { api, integrations, nextMissionId } from "../lib/db";
 import { BOOKING_TYPES, DEPARTMENTS } from "../lib/utils";
 import { Button, Input, Label, Select, Textarea, Spinner } from "../components/ui";
 import { useToast } from "../components/Layout";
@@ -74,7 +74,7 @@ export default function NewBooking({ user }) {
     if (mode === "errand" && (!form.requested_by || !form.department)) return;
     setLoading(true);
     try {
-      const mission_id = Date.now().toString().slice(-6);
+      const mission_id = nextMissionId();
       const rec = {
         ...form,
         mission_id,
