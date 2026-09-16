@@ -528,22 +528,56 @@ export default function MissionDetail() {
 
       {done && log && (
         <div className="space-y-4">
-          <div className="bg-mint/60 border border-mintdark rounded-xl p-4 space-y-2">
+          <div className="bg-white rounded-3xl shadow-card p-5 space-y-4">
             <p className="flex items-center gap-2 text-brand font-semibold text-sm">
               <CheckCircle2 className="w-4 h-4" /> Mission completed
             </p>
-            <div className="grid grid-cols-2 gap-2 text-sm text-mocha">
+
+            {/* Guest — the star of the receipt */}
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-taupe">
+                {request.requester_type === "Errand" ? "Requested by" : "Guest"}
+              </p>
+              <p className="text-2xl font-heading font-extrabold text-cocoa leading-tight">
+                {request.guest_name}
+              </p>
+            </div>
+
+            {/* People: booked by + driver */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-mint/40 rounded-xl p-3">
+                <p className="text-[11px] uppercase tracking-wide text-taupe">Booked by</p>
+                <p className="text-sm font-semibold text-cocoa mt-0.5">
+                  {request.booked_by || request.department || "—"}
+                </p>
+              </div>
+              <div className="bg-mint/40 rounded-xl p-3">
+                <p className="text-[11px] uppercase tracking-wide text-taupe">Driver</p>
+                <p className="text-sm font-semibold text-cocoa mt-0.5">
+                  {log.driver_name || request.assigned_driver_name || "—"}
+                </p>
+              </div>
+            </div>
+
+            {/* Trip facts */}
+            <div className="grid grid-cols-2 gap-2 text-sm text-mocha border-t border-sand/70 pt-3">
               <p>
                 Time out: {log.time_out ? dayjs(log.time_out).format("h:mm A, MMM D") : "—"}
               </p>
               <p>
                 Time in: {log.time_in ? dayjs(log.time_in).format("h:mm A, MMM D") : "—"}
               </p>
-              <p>Start ODO: {log.start_odometer} km</p>
-              <p>End ODO: {log.end_odometer} km</p>
+              <p>Start ODO: {Number(log.start_odometer).toLocaleString()} km</p>
+              <p>End ODO: {Number(log.end_odometer).toLocaleString()} km</p>
+              {request.vehicle_plate && (
+                <p>Vehicle: {request.vehicle_plate}</p>
+              )}
+              {request.requester_type === "Errand" && request.department && (
+                <p>Department: {request.department}</p>
+              )}
             </div>
-            <p className="text-lg font-bold text-brand">
-              Total: {log.distance} km
+            <p className="text-2xl font-bold text-brand">
+              {log.distance} km total
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3">

@@ -26,7 +26,7 @@ const emptyForm = {
   requested_by: "",
 };
 
-export default function NewBooking() {
+export default function NewBooking({ user }) {
   const navigate = useNavigate();
   const toast = useToast();
   const [mode, setMode] = useState("guest"); // "guest" | "errand"
@@ -78,6 +78,7 @@ export default function NewBooking() {
       const rec = {
         ...form,
         mission_id,
+        booked_by: user?.full_name || "Front Office",
         requester_type: mode === "errand" ? "Errand" : "Guest",
         booking_type: mode === "errand" ? "Errand" : form.booking_type,
         guest_name: mode === "errand" ? form.requested_by : form.guest_name,

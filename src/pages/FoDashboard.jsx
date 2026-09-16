@@ -9,24 +9,39 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { themeColors } from "../lib/theme";
 import { api } from "../lib/db";
 import { BOOKING_TYPES } from "../lib/utils";
 import { Input, Label, EmptyState } from "../components/ui";
-import { themeColors } from "../lib/theme";
+import { Link } from "react-router-dom";
+import { cn } from "../lib/utils";
 
 function Stat({ value, label, sub, tone }) {
   const tones = {
-    blue: "text-brand",
-    green: "text-brand",
+    brand: "text-brand",
+    green: "text-teal",
     amber: "text-accent-dark",
     slate: "text-cocoa",
   };
   return (
     <div className="bg-white rounded-3xl shadow-card p-4">
-      <p className={`text-2xl font-bold ${tones[tone] || tones.slate}`}>{value}</p>
+      <p className={cn("text-2xl font-bold", tones[tone] || tones.slate)}>{value}</p>
       <p className="text-sm font-medium text-mocha">{label}</p>
       <p className="text-xs text-taupe">{sub}</p>
     </div>
+  );
+}
+
+function StatusChip({ status }) {
+  const map = {
+    Pending: "bg-accent/15 text-accent-dark border-accent/40",
+    "In Progress": "bg-brand text-white border-brand",
+    Completed: "bg-mint/70 text-teal border-teal/30",
+  };
+  return (
+    <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap", map[status] || "bg-mint/60 text-mocha border-sand")}>
+      {status}
+    </span>
   );
 }
 
@@ -52,6 +67,25 @@ export default function FoDashboard() {
       }
     })();
   }, []);
+
+  const today = dayjs().format("YYYY-MM-DD");
+
+  // ------------------------------------------------------------------
+  // TODAY AT THE LOBBY — the daily run sheet
+  // ------------------------------------------------------------------
+  const todays = useMemo(
+    () =>
+      requests
+        .filter((r) => r.schedule_date === today)
+        .sort((a, b) => (a.schedule_time || "99:99").localeCompare(b.schedule_time || "99:99")),
+    [requests, today]
+  );
+
+  const todaysPending = todays.filter((r) => r.status === "Pending");
+  const todaysActive = todays.filter((r) => r.status === "In Progress");
+  const todaysDone = todays.filter((r) => r.status === "Completed");
+  const nextPickup = todaysPending[0] || null;
+  const vehiclesOut = [...new Set(todaysActive.map((r) => r.vehicle_plate).filter(Boolean))];
 
   const inRange = useMemo(() => {
     const start = dayjs(from).startOf("day");
@@ -114,9 +148,120 @@ export default function FoDashboard() {
   return (
     <div>
       <h1 className="text-2xl font-heading font-bold text-cocoa">Front Office Dashboard</h1>
-      <p className="text-sm text-taupe mt-1 mb-6">Bookings & mileage by date range</p>
+      <p className="text-sm text-taupe mt-1 mb-6">
+        {dayjs().format("dddd, MMMM D, YYYY")} — the lobby's daily briefing
+      </p>
 
-      <div className="flex flex-wrap items-end gap-3 mb-6">
+      {/* ================= TODAY AT THE LOBBY ================= */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <Stat value={todays.length} label="Trips today" sub="scheduled" tone="brand" />
+        <Stat value={todaysPending.length} label="Awaiting pickup" sub="pending" tone="amber" />
+        <Stat value={todaysActive.length} label="On the road" sub="in progress" tone="slate" />
+        <Stat value={todaysDone.length} label="Completed today" sub="done & logged" tone="green" />
+      </div>
+
+      {/* next pickup banner */}
+      {nextPickup && (
+        <Link to={`/mission/${nextPickup.id}`} className="block mb-5">
+          <div className="bg-brand text-white rounded-3xl p-5 shadow-lift flex flex-wrap items-center gap-x-8 gap-y-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide opacity-80">Next pickup</p>
+              <p className="text-3xl font-heading font-extrabold leading-none mt-1">
+                {nextPickup.schedule_time || "—"}
+              </p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-lg font-bold truncate">{nextPickup.guest_name}</p>
+              <p className="text-sm opacity-85 truncate">
+                {nextPickup.pickup_location || "Hotel"} → {nextPickup.destination || "TBA"}
+              </p>
+            </div>
+            <div className="ml-auto text-sm opacity-90">
+              <p>🧑‍✈️ {nextPickup.assigned_driver_name || "Unassigned"}</p>
+              <p>🚗 {nextPickup.vehicle_plate || "Unassigned"}</p>
+            </div>
+          </div>
+        </Link>
+      )}
+      {!nextPickup && todays.length > 0 && (
+        <div className="bg-white rounded-3xl shadow-card p-4 mb-5 text-center text-sm text-mocha">
+          {todaysActive.length
+            ? "All pickups done for now — a trip is currently on the road."
+            : "Every scheduled pickup today has been completed. Clear board. ✅"}
+        </div>
+      )}
+
+      {/* run sheet */}
+      <div className="bg-white rounded-3xl shadow-card p-5 mb-8">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h3 className="text-sm font-semibold text-cocoa">
+            Today's Run Sheet — {dayjs().format("MMM D")}
+          </h3>
+          {vehiclesOut.length > 0 && (
+            <p className="text-xs text-accent-dark font-semibold">
+              🚗 Out now: {vehiclesOut.join(", ")}
+            </p>
+          )}
+        </div>
+        {loading ? (
+          <p className="text-sm text-taupe py-6 text-center">Loading today's schedule…</p>
+        ) : todays.length === 0 ? (
+          <EmptyState>No trips scheduled today — quiet day in the lobby.</EmptyState>
+        ) : (
+          <div className="space-y-2.5">
+            {todays.map((r) => {
+              const isNext = nextPickup && r.id === nextPickup.id;
+              const log = logs.find((l) => l.request_id === r.id);
+              return (
+                <Link
+                  key={r.id}
+                  to={`/mission/${r.id}`}
+                  className={cn(
+                    "flex items-center gap-3 rounded-2xl border p-3 transition-all hover:shadow-card",
+                    isNext ? "border-brand bg-brand/5" : "border-sand/70 bg-white"
+                  )}
+                >
+                  <div className="text-center flex-none w-14">
+                    <p className={cn("text-sm font-extrabold", isNext ? "text-brand" : "text-cocoa")}>
+                      {r.schedule_time || "—"}
+                    </p>
+                    {isNext && <p className="text-[9px] font-bold text-brand uppercase">Next</p>}
+                  </div>
+                  <div
+                    className={cn(
+                      "w-1 self-stretch rounded-full flex-none",
+                      r.status === "Completed" ? "bg-mintdark" : r.status === "In Progress" ? "bg-gold" : "bg-sand"
+                    )}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-cocoa truncate">
+                      {r.guest_name}
+                      <span className="ml-2 text-[10px] font-medium text-taupe align-middle">
+                        {r.requester_type === "Errand" ? `Errand · ${r.department}` : r.booking_type}
+                      </span>
+                    </p>
+                    <p className="text-xs text-taupe truncate">
+                      {r.pickup_location || "Hotel"} → {r.destination || "TBA"}
+                      {log?.distance != null && ` · ${log.distance} km done`}
+                    </p>
+                  </div>
+                  <div className="hidden sm:block text-right text-xs text-mocha flex-none">
+                    <p>{r.assigned_driver_name || "— driver"}</p>
+                    <p className="text-taupe">{r.vehicle_plate || "no vehicle"}</p>
+                  </div>
+                  <StatusChip status={r.status} />
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ================= REPORTS & ANALYTICS (details below) ================= */}
+      <h2 className="text-lg font-heading font-bold text-cocoa mb-1">Reports & Analytics</h2>
+      <p className="text-sm text-taupe mb-4">Date-range history, mileage and breakdowns</p>
+
+      <div className="flex flex-wrap items-end gap-3 mb-5">
         <div className="space-y-1">
           <Label className="text-xs">From</Label>
           <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9" />
@@ -128,10 +273,10 @@ export default function FoDashboard() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <Stat value={`${totalKm} km`} label="Total Mileage" sub="this month" tone="blue" />
+        <Stat value={`${totalKm} km`} label="Total Mileage" sub="in range" tone="brand" />
         <Stat value={activeNow} label="Active Now" sub="in progress" tone="slate" />
-        <Stat value={completed} label="Completed" sub="this month" tone="green" />
-        <Stat value={pending} label="Pending" sub="scheduled" tone="amber" />
+        <Stat value={completed} label="Completed" sub="in range" tone="green" />
+        <Stat value={pending} label="Pending" sub="in range" tone="amber" />
       </div>
 
       <div className="bg-white rounded-3xl shadow-card p-5 mb-6">
@@ -152,7 +297,7 @@ export default function FoDashboard() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-6 mb-6">
         <div className="bg-white rounded-3xl shadow-card p-5">
           <h3 className="text-sm font-semibold text-cocoa mb-4">Vehicle Usage</h3>
           {vehicleUsage.length === 0 ? (
@@ -179,12 +324,12 @@ export default function FoDashboard() {
           <h3 className="text-sm font-semibold text-cocoa mb-4">Bookings by Type</h3>
           <div className="grid grid-cols-2 gap-3">
             {byType.map((t) => (
-              <div key={t.type} className="bg-mint/40 border border-sand/70 rounded-lg p-3">
+              <div key={t.type} className="bg-mint/40 rounded-lg p-3">
                 <p className="text-xs text-taupe">{t.type}</p>
                 <p className="text-xl font-bold text-cocoa">{t.count}</p>
               </div>
             ))}
-            <div className="bg-orange/10 border border-orange/20 rounded-lg p-3">
+            <div className="bg-orange/10 rounded-lg p-3">
               <p className="text-xs text-orange">Errands (internal)</p>
               <p className="text-xl font-bold text-cocoa">{errandCount}</p>
             </div>
@@ -192,7 +337,7 @@ export default function FoDashboard() {
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-card p-5 mt-6">
+      <div className="bg-white rounded-3xl shadow-card p-5">
         <h3 className="text-sm font-semibold text-cocoa mb-4">
           Department Errand Mileage — verified km
         </h3>
@@ -209,7 +354,7 @@ export default function FoDashboard() {
                   formatter={(v) => [`${v} km`, "Verified distance"]}
                   contentStyle={{ borderRadius: 8, border: "1px solid #EFE6D8", fontSize: 12 }}
                 />
-                <Bar dataKey="km" fill={themeColors().accent} radius={[0, 4, 4, 0]} isAnimationActive={false} />
+                <Bar dataKey="km" fill="#B4552D" radius={[0, 4, 4, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>

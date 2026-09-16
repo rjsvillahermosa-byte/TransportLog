@@ -71,7 +71,7 @@ function Shell() {
           <Route path="/fo-dashboard" element={<FoDashboard />} />
           <Route path="/fleet" element={<Fleet />} />
           <Route path="/fuel" element={<Fuel />} />
-          <Route path="/new-booking" element={<NewBooking />} />
+          <Route path="/new-booking" element={<NewBooking user={user} />} />
           <Route path="/history" element={<History />} />
           <Route path="/qr-codes" element={<QrCodes />} />
           <Route path="/reports" element={<Reports user={user} />} />
