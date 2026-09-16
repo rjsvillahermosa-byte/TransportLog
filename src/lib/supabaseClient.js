@@ -12,9 +12,18 @@ import SCHEMA_SQL from "../../supabase/migrations/0001_init.sql?raw";
 const CFG_KEY = "fleetflow:supabase";
 const MODE_KEY = "fleetflow:mode";
 
+// Baked connection — the Super Admin's Supabase project. The anon key is
+// public by design (RLS policies protect the data), so shipping it in the
+// client is standard Supabase practice.
+const BAKED = {
+  url: "https://agseqetbwesqnqblarba.supabase.co",
+  anonKey:
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnc2VxZXRid2VzcW5xYmxhcmJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NDg0NjgsImV4cCI6MjEwNTEyNDQ2OH0.CusZgwv5OfuDy17rwnPEc5faBMSYekazjpcKXEDoGDI",
+};
+
 export function getSupabaseConfig() {
-  const envUrl = import.meta.env?.VITE_SUPABASE_URL || "";
-  const envKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || "";
+  const envUrl = import.meta.env?.VITE_SUPABASE_URL || BAKED.url;
+  const envKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || BAKED.anonKey;
   try {
     const raw = localStorage.getItem(CFG_KEY);
     if (raw) {
