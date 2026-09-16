@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "../lib/day";
+import { LogOut } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -10,10 +11,10 @@ import {
   YAxis,
 } from "recharts";
 import { themeColors } from "../lib/theme";
-import { api } from "../lib/db";
+import { api, auth } from "../lib/db";
 import { BOOKING_TYPES } from "../lib/utils";
-import { Input, Label, EmptyState } from "../components/ui";
-import { Link } from "react-router-dom";
+import { Button, Input, Label, EmptyState } from "../components/ui";
+import { Link, useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
 
 function Stat({ value, label, sub, tone }) {
@@ -46,6 +47,7 @@ function StatusChip({ status }) {
 }
 
 export default function FoDashboard() {
+  const navigate = useNavigate();
   const [from, setFrom] = useState(dayjs().startOf("month").format("YYYY-MM-DD"));
   const [to, setTo] = useState(dayjs().format("YYYY-MM-DD"));
   const [requests, setRequests] = useState([]);
@@ -147,10 +149,25 @@ export default function FoDashboard() {
 
   return (
     <div>
-      <h1 className="text-2xl font-heading font-bold text-cocoa">Front Office Dashboard</h1>
-      <p className="text-sm text-taupe mt-1 mb-6">
-        {dayjs().format("dddd, MMMM D, YYYY")} — the lobby's daily briefing
-      </p>
+      <div className="flex items-start justify-between gap-3 flex-wrap mb-6">
+        <div>
+          <h1 className="text-2xl font-heading font-bold text-cocoa">Front Office Dashboard</h1>
+          <p className="text-sm text-taupe mt-1">
+            {dayjs().format("dddd, MMMM D, YYYY")} — the lobby's daily briefing
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-none"
+          onClick={() => {
+            auth.logout();
+            navigate("/login");
+          }}
+        >
+          <LogOut className="w-4 h-4" /> Sign Out
+        </Button>
+      </div>
 
       {/* ================= TODAY AT THE LOBBY ================= */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">

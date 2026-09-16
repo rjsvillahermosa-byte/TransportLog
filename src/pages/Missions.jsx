@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Briefcase, ClipboardList, Trash2, Clock, MapPin, Calendar, Car } from "lucide-react";
+import { Briefcase, ClipboardList, LogOut, Trash2, Clock, MapPin, Calendar, Car } from "lucide-react";
 import dayjs from "../lib/day";
-import { api, isOnline } from "../lib/db";
+import { api, auth, isOnline } from "../lib/db";
 import { AlertTriangle } from "lucide-react";
 import { formatTime } from "../lib/voice";
 import { cn, STATUS_STYLES, BOOKING_ICONS } from "../lib/utils";
@@ -196,13 +196,24 @@ export default function Missions({ user }) {
 
   return (
     <div>
-      <div className="flex items-end justify-between mb-6">
+      <div className="flex items-start justify-between gap-3 flex-wrap mb-6">
         <div>
           <h1 className="text-2xl font-heading font-bold text-cocoa">
             Welcome, {user?.full_name?.split(" ")[0] || "Driver"}
           </h1>
           <p className="text-sm text-taupe mt-1">Your transport missions dashboard</p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-none"
+          onClick={() => {
+            auth.logout();
+            navigate("/login");
+          }}
+        >
+          <LogOut className="w-4 h-4" /> Sign Out
+        </Button>
         <div className="flex gap-2">
           <div className="bg-mint/50 border border-brand/20 rounded-lg px-3 py-2 text-center min-w-[64px]">
             <p className="text-lg font-bold text-brand">{active}</p>
