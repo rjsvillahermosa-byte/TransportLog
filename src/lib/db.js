@@ -63,9 +63,19 @@ function sbEntity(entityName) {
       return data;
     },
     async create(data) {
-      const { data: row, error } = await sb.from(table).insert(data).select().single();
-      if (error) throw new Error(error.message);
-      return row;
+      // stamp the creator so demo accounts can be wiped cleanly later
+      if (!data.created_by) {
+        const { data: sess } = await sb.auth.getSession();
+        if (sess?.session?.user) data.created_by = sess.session.user.id;
+      }
+      let attempt = await sb.from(table).insert(data).select().single();
+      // self-healing: older projects may not have the created_by column yet
+      if (attempt.error && /created_by/i.test(attempt.error?.message || "")) {
+        delete data.created_by;
+        attempt = await sb.from(table).insert(data).select().single();
+      }
+      if (attempt.error) throw new Error(attempt.error.message);
+      return attempt.data;
     },
     async update(id, data) {
       const { data: row, error } = await sb.from(table).update(data).eq("id", id).select().single();
@@ -162,6 +172,31 @@ const supabaseUserAdmin = {
 };
 
 const supabaseUserAdminAsync = {
+  async addDemoUser() {
+    const sb = getSupabaseClient();
+    // save the admin session — signUp can swap it
+    const { data: sessData } = await sb.auth.getSession();
+    const adminSession = sessData?.session;
+    const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const email = "demo." + suffix.toLowerCase() + "@fleetflow.test";
+    const password = "demo" + Math.random().toString(36).slice(2, 8);
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: "Demo User " + suffix, is_demo: true } },
+    });
+    if (error) throw new Error(error.message);
+    // restore the admin session if the signup swapped it away
+    if (adminSession) {
+      try {
+        await sb.auth.setSession({
+          access_token: adminSession.access_token,
+          refresh_token: adminSession.refresh_token,
+        });
+      } catch {}
+    }
+    return { id: data?.user?.id, email, password, name: "Demo User " + suffix };
+  },
   async list() {
     const sb = getSupabaseClient();
     const { data, error } = await sb.from("profiles").select("*").order("created_date");
@@ -197,9 +232,10 @@ const supabaseUserAdminAsync = {
     if (error) throw new Error(error.message);
     return data;
   },
-  async remove(id, currentEmail, actorRole = "Staff") {
+  async remove(id, currentEmail, actorRole = "Staff", wipeData = false) {
     // Auth users can't be deleted with the anon key — disable instead.
     const sb = getSupabaseClient();
+    if (wipeData) await wipeCreatedDataSb(id);
     const { data: prof } = await sb.from("profiles").select("role, email").eq("id", id).single();
     if (prof?.role === "Super Admin") throw new Error("The Super Admin account cannot be deleted.");
     if (prof?.role === "Admin" && actorRole !== "Super Admin")
@@ -269,6 +305,12 @@ function makeEntity(name) {
     },
     async create(data) {
       await delay();
+      // stamp the creator (local mode: the signed-in user's id)
+      if (!data.created_by) {
+        const email = localStorage.getItem(K("session"));
+        const u = read("users").find((x) => x.email === email);
+        if (u) data.created_by = u.id;
+      }
       const rows = read(col);
       const row = {
         id: uid(),
@@ -543,6 +585,20 @@ export const auth = new Proxy(
 // --- admin user management (same easy flow as vehicle registration) --------
 const PROTECTED_ROLES = ["Admin", "Super Admin"];
 
+// wipe every record a user created (demo-account cleanup)
+async function wipeCreatedDataLocal(userId) {
+  for (const k of ["entity:TransportRequest", "entity:MileageLog", "entity:FuelLog", "entity:IncidentLog", "entity:ServiceLog"]) {
+    write(k, read(k).filter((r) => r.created_by !== userId));
+  }
+}
+async function wipeCreatedDataSb(userId) {
+  const sb = getSupabaseClient();
+  for (const t of ["transport_requests", "mileage_logs", "fuel_logs", "incidents", "service_logs"]) {
+    const { error } = await sb.from(t).delete().eq("created_by", userId);
+    if (error) throw new Error(error.message);
+  }
+}
+
 const localUserAdmin = {
   list() {
     return read(USERS_COL);
@@ -593,7 +649,7 @@ const localUserAdmin = {
     write(USERS_COL, users);
     return users[i];
   },
-  remove(id, currentEmail, actorRole = "Staff") {
+  remove(id, currentEmail, actorRole = "Staff", wipeData = false) {
     const users = read(USERS_COL);
     const u = users.find((x) => x.id === id);
     if (!u) return;
@@ -608,10 +664,31 @@ const localUserAdmin = {
     );
     if (PROTECTED_ROLES.includes(u.role) && u.status === "Active" && admins.length === 0)
       throw new Error("Can't delete the last active admin account.");
+    if (wipeData) wipeCreatedDataLocal(id);
     write(
       USERS_COL,
       users.filter((x) => x.id !== id)
     );
+  },
+
+  // one-click demo account for testing (local mode)
+  addDemoUser(actorRole = "Staff") {
+    const users = read(USERS_COL);
+    const n = users.filter((x) => x.is_demo).length + 1;
+    const password = "demo" + Math.random().toString(36).slice(2, 8);
+    const u = {
+      id: uid(),
+      full_name: "Demo User " + n,
+      email: "demo." + Math.random().toString(36).slice(2, 6) + "@fleetflow.test",
+      password,
+      role: "Staff",
+      status: "Active",
+      is_demo: true,
+      created_date: nowIso(),
+    };
+    users.push(u);
+    write(USERS_COL, users);
+    return { id: u.id, email: u.email, password };
   },
 };
 

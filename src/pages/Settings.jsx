@@ -562,11 +562,35 @@ export default function Settings({ user }) {
   }, []);
 
   const removeUser = (u) => {
-    if (!window.confirm(`Delete the account for ${u.full_name}? They will no longer be able to sign in.`)) return;
+    const isDemo = u.is_demo || /@fleetflow\.test$/i.test(u.email || "");
+    const msg = isDemo
+      ? `Delete the demo account "${u.full_name}"?\n\nAll bookings, missions, fuel logs and entries created by this demo account will also be wiped from the database.`
+      : `Delete the account for ${u.full_name}? They will no longer be able to sign in.`;
+    if (!window.confirm(msg)) return;
     try {
-      userAdmin.remove(u.id, user.email, user.role);
+      userAdmin.remove(u.id, user.email, user.role, isDemo);
       refreshUsers();
-      toast({ title: "User deleted" });
+      toast({
+        title: isDemo ? "Demo account deleted" : "User deleted",
+        description: isDemo ? "Everything they created was wiped from the database." : "",
+      });
+    } catch (e2) {
+      alert(e2.message);
+    }
+  };
+
+  const addDemoAccount = () => {
+    try {
+      const acc = userAdmin.addDemoUser
+        ? userAdmin.addDemoUser()
+        : Promise.resolve(userAdmin.addDemoUserAsync?.());
+      Promise.resolve(acc).then((a) => {
+        refreshUsers();
+        toast({
+          title: "🎭 Demo account created",
+          description: `Email: ${a.email} · Password: ${a.password}`,
+        });
+      });
     } catch (e2) {
       alert(e2.message);
     }
@@ -728,15 +752,25 @@ export default function Settings({ user }) {
               Admins see this Settings area. Supervisors get the Reports builder. Staff see neither.
             </p>
           </div>
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={() => setUserModal({})}
-            disabled={supabaseActive()}
-            title={supabaseActive() ? "Invite users from the Supabase Dashboard in this mode" : ""}
-          >
-            <UserPlus className="w-3.5 h-3.5" /> Add User
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setUserModal({ demo: true })}
+              title="One click — creates a throwaway Staff account for testing"
+            >
+              🎭 Add Demo
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => setUserModal({})}
+              disabled={supabaseActive()}
+              title={supabaseActive() ? "Invite users from the Supabase Dashboard in this mode" : ""}
+            >
+              <UserPlus className="w-3.5 h-3.5" /> Add User
+            </Button>
+          </div>
         </div>
         <div className="mt-4 space-y-2">
           {users.map((u) => (
@@ -750,6 +784,9 @@ export default function Settings({ user }) {
                   {u.email === user?.email && (
                     <span className="text-xs font-normal text-taupe"> · you</span>
                   )}
+                  {u.is_demo || /@fleetflow\.test$/i.test(u.email || "") ? (
+                    <span className="ml-1.5 text-[10px] font-semibold text-accent-dark">🎭 demo</span>
+                  ) : null}
                 </p>
                 <p className="text-xs text-taupe truncate">{u.email}</p>
               </div>

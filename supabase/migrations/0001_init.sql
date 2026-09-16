@@ -295,6 +295,17 @@ create policy "org_settings admins update" on public.org_settings
   with check (public.current_role() in ('Super Admin', 'Admin'));
 
 -- ============================================================================
+-- v2.1 — creator stamping (created_by) for demo-account wipe support
+-- ============================================================================
+alter table public.transport_requests add column if not exists created_by text;
+alter table public.mileage_logs add column if not exists created_by text;
+alter table public.fuel_logs add column if not exists created_by text;
+alter table public.incidents add column if not exists created_by text;
+alter table public.service_logs add column if not exists created_by text;
+alter table public.drivers add column if not exists created_by text;
+alter table public.vehicles add column if not exists created_by text;
+
+-- ============================================================================
 -- Storage — one public bucket for captured photos & branding logo
 -- ============================================================================
 insert into storage.buckets (id, name, public)
