@@ -433,9 +433,9 @@ function UserModal({ open, onClose, initial, currentEmail, actorRole, onSaved })
       if (initial?.id) {
         const patch = { ...form };
         if (!patch.password) delete patch.password; // blank = keep current
-        userAdmin.update(initial.id, patch, actorRole);
+        await userAdmin.update(initial.id, patch, actorRole);
       } else {
-        userAdmin.create(form, actorRole); // blank password = auto-generated
+        await userAdmin.create(form, actorRole); // blank password = auto-generated
       }
       setBusy(false);
       onSaved();

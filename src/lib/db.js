@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabaseActive, getSupabaseClient } from "./supabaseClient";
+import { supabaseActive, getSupabaseClient, getSupabaseConfig } from "./supabaseClient";
 
 // ---------------------------------------------------------------------------
 // Mock Base44 backend — mirrors the live app's SDK surface
@@ -172,31 +172,31 @@ const supabaseUserAdmin = {
   },
 };
 
+// Creates a user via the admin-create-user Edge Function, which uses the
+// service-role Admin API (auth.admin.createUser with email_confirm: true).
+// This never sends a confirmation email, so it can't be blocked by Supabase's
+// shared email rate limit the way the public signUp() path can — that limit
+// is what was breaking demo-account creation.
+async function callAdminCreateUser(body) {
+  const sb = getSupabaseClient();
+  const { data: sessData } = await sb.auth.getSession();
+  const token = sessData?.session?.access_token;
+  if (!token) throw new Error("You must be signed in to do this.");
+  const { url } = getSupabaseConfig();
+  const res = await fetch(`${url}/functions/v1/admin-create-user`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || "Request failed");
+  return json;
+}
+
 const supabaseUserAdminAsync = {
   async addDemoUser() {
-    const sb = getSupabaseClient();
-    // save the admin session — signUp can swap it
-    const { data: sessData } = await sb.auth.getSession();
-    const adminSession = sessData?.session;
-    const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
-    const email = "demo." + suffix.toLowerCase() + "@fleetflow.test";
-    const password = "demo" + Math.random().toString(36).slice(2, 8);
-    const { data, error } = await sb.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: "Demo User " + suffix, is_demo: true } },
-    });
-    if (error) throw new Error(error.message);
-    // restore the admin session if the signup swapped it away
-    if (adminSession) {
-      try {
-        await sb.auth.setSession({
-          access_token: adminSession.access_token,
-          refresh_token: adminSession.refresh_token,
-        });
-      } catch {}
-    }
-    return { id: data?.user?.id, email, password, name: "Demo User " + suffix };
+    const result = await callAdminCreateUser({ mode: "demo" });
+    return { id: result.id, email: result.email, password: result.password, name: result.full_name };
   },
   async list() {
     const sb = getSupabaseClient();
@@ -211,10 +211,17 @@ const supabaseUserAdminAsync = {
       created_date: p.created_date,
     }));
   },
-  async create() {
-    throw new Error(
-      "In Supabase mode, invite users from Supabase Dashboard → Authentication → Add user (the profile is created automatically), then promote them here."
-    );
+  async create(form, actorRole = "Staff") {
+    const result = await callAdminCreateUser({
+      mode: "user",
+      full_name: form.full_name,
+      email: form.email,
+      password: form.password || undefined,
+    });
+    if (form.role && form.role !== "Staff") {
+      await this.update(result.id, { role: form.role, status: form.status }, actorRole);
+    }
+    return result;
   },
   async update(id, patch, actorRole = "Staff") {
     const sb = getSupabaseClient();
