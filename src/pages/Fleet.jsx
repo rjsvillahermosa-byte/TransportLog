@@ -94,6 +94,7 @@ const LICENSE_PROMPT =
   "full_name, license_number, license_expiry (YYYY-MM-DD), license_code (e.g. Professional — restrictions).";
 
 function DriverModal({ open, onClose, initial, onSaved }) {
+  const toast = useToast();
   const [form, setForm] = useState(initial || emptyDriver);
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -161,11 +162,22 @@ function DriverModal({ open, onClose, initial, onSaved }) {
   const save = async () => {
     if (!form.full_name.trim()) return;
     setBusy(true);
-    const payload = { ...form, license_photo: licensePhoto, avatar };
-    if (initial?.id) await api.entities.Driver.update(initial.id, payload);
-    else await api.entities.Driver.create(payload);
-    setBusy(false);
-    onSaved();
+    try {
+      const payload = {
+        ...form,
+        license_photo: licensePhoto,
+        avatar,
+        license_expiry: form.license_expiry || null,
+      };
+      if (initial?.id) await api.entities.Driver.update(initial.id, payload);
+      else await api.entities.Driver.create(payload);
+      onSaved();
+    } catch (err) {
+      console.error("Failed to save driver:", err);
+      toast({ title: "Error", description: "Failed to save driver." });
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <Modal open={open} onClose={onClose} title={initial?.id ? "Edit Driver" : "Add Driver"}>
@@ -302,6 +314,7 @@ const INS_PROMPT =
   "provider, policy_number, insurance_expiry (YYYY-MM-DD).";
 
 function VehicleModal({ open, onClose, initial, onSaved }) {
+  const toast = useToast();
   const [form, setForm] = useState(initial || emptyVehicle);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -362,17 +375,25 @@ function VehicleModal({ open, onClose, initial, onSaved }) {
   const save = async () => {
     if (!form.plate_number.trim()) return;
     setBusy(true);
-    const payload = {
-      ...form,
-      tank_liters: Number(form.tank_liters) || 60,
-      rated_km_per_liter: Number(form.rated_km_per_liter) || 9,
-      pms_interval_km: Number(form.pms_interval_km) || 10000,
-      pms_interval_months: Number(form.pms_interval_months) || 6,
-    };
-    if (initial?.id) await api.entities.Vehicle.update(initial.id, payload);
-    else await api.entities.Vehicle.create(payload);
-    setBusy(false);
-    onSaved();
+    try {
+      const payload = {
+        ...form,
+        tank_liters: Number(form.tank_liters) || 60,
+        rated_km_per_liter: Number(form.rated_km_per_liter) || 9,
+        pms_interval_km: Number(form.pms_interval_km) || 10000,
+        pms_interval_months: Number(form.pms_interval_months) || 6,
+        registration_expiry: form.registration_expiry || null,
+        insurance_expiry: form.insurance_expiry || null,
+      };
+      if (initial?.id) await api.entities.Vehicle.update(initial.id, payload);
+      else await api.entities.Vehicle.create(payload);
+      onSaved();
+    } catch (err) {
+      console.error("Failed to save vehicle:", err);
+      toast({ title: "Error", description: "Failed to save vehicle." });
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <Modal open={open} onClose={onClose} title={initial?.id ? "Edit Vehicle" : "Add Vehicle"}>
@@ -620,24 +641,31 @@ function ServiceModal({ open, onClose, vehicles, presetPlate, onSaved }) {
   const save = async () => {
     if (!form.vehicle_plate || !form.service_date) return;
     setBusy(true);
-    await api.entities.ServiceLog.create({
-      ...form,
-      odometer_at_service: form.odometer_at_service ? Number(form.odometer_at_service) : undefined,
-      next_service_km: form.next_service_km ? Number(form.next_service_km) : undefined,
-      cost: form.cost ? Number(form.cost) : undefined,
-      source: extracted ? "ocr" : "manual",
-      report_photo: reportPhoto,
-      casa: extracted?.casa || form.service_provider,
-      parts: extracted?.parts || [],
-      recommendations: extracted?.recommendations || [],
-    });
-    // Logging a tire replacement restarts the tire-wear clock for that vehicle
-    if (form.service_type === "Tire Replacement" && form.odometer_at_service) {
-      const veh = vehicles.find((v) => v.plate_number === form.vehicle_plate);
-      if (veh) await api.entities.Vehicle.update(veh.id, { tire_changed_odometer: Number(form.odometer_at_service) });
+    try {
+      await api.entities.ServiceLog.create({
+        ...form,
+        odometer_at_service: form.odometer_at_service ? Number(form.odometer_at_service) : undefined,
+        next_service_km: form.next_service_km ? Number(form.next_service_km) : undefined,
+        next_service_date: form.next_service_date || null,
+        cost: form.cost ? Number(form.cost) : undefined,
+        source: extracted ? "ocr" : "manual",
+        report_photo: reportPhoto,
+        casa: extracted?.casa || form.service_provider,
+        parts: extracted?.parts || [],
+        recommendations: extracted?.recommendations || [],
+      });
+      // Logging a tire replacement restarts the tire-wear clock for that vehicle
+      if (form.service_type === "Tire Replacement" && form.odometer_at_service) {
+        const veh = vehicles.find((v) => v.plate_number === form.vehicle_plate);
+        if (veh) await api.entities.Vehicle.update(veh.id, { tire_changed_odometer: Number(form.odometer_at_service) });
+      }
+      onSaved();
+    } catch (err) {
+      console.error("Failed to save service log:", err);
+      toast({ title: "Error", description: "Failed to save service log." });
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
-    onSaved();
   };
 
   return (
