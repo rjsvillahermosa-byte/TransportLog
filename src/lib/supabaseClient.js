@@ -16,9 +16,9 @@ const MODE_KEY = "fleetflow:mode";
 // public by design (RLS policies protect the data), so shipping it in the
 // client is standard Supabase practice.
 const BAKED = {
-  url: "https://agseqetbwesqnqblarba.supabase.co",
+  url: "https://yhdvfjkfzrgcrzstnpti.supabase.co",
   anonKey:
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnc2VxZXRid2VzcW5xYmxhcmJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NDg0NjgsImV4cCI6MjEwNTEyNDQ2OH0.CusZgwv5OfuDy17rwnPEc5faBMSYekazjpcKXEDoGDI",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InloZHZmamtmenJnY3J6c3RucHRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2NzU3OTMsImV4cCI6MjEwNTI1MTc5M30.G8_NovLqR8FEjG5xa-CbPZ-oQB3-Lu3tRvBfDA62LSM",
 };
 
 export function getSupabaseConfig() {
