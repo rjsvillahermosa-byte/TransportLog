@@ -65,8 +65,13 @@ export function LoginPage() {
 
   const google = async () => {
     setLoading(true);
-    await auth.loginWithProvider();
-    window.location.href = "/";
+    try {
+      await auth.loginWithProvider();
+      // signInWithOAuth navigates the browser to Google itself — nothing to do after it resolves.
+    } catch (err) {
+      setError(err.message || "Google sign-in failed");
+      setLoading(false);
+    }
   };
 
   return (
