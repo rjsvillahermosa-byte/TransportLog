@@ -138,14 +138,15 @@ const supabaseAuth = {
   },
   async register({ full_name, email, password }) {
     const sb = getSupabaseClient();
-    const { error } = await sb.auth.signUp({
+    const { data, error } = await sb.auth.signUp({
       email,
       password,
       options: { data: { full_name } },
     });
     if (error) throw new Error(error.message);
     // profile auto-created by the on_auth_user_created trigger (Staff)
-    return true;
+    // No session yet means email confirmation is required before login will work.
+    return { needsEmailConfirmation: !data.session };
   },
   async resetPasswordRequest(email) {
     const sb = getSupabaseClient();

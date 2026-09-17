@@ -9,6 +9,8 @@ export function RegisterPage() {
   const [form, setForm] = useState({ full_name: "", email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
+
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const submit = async (e) => {
@@ -20,14 +22,39 @@ export function RegisterPage() {
     }
     setLoading(true);
     try {
-      await auth.register(form);
-      window.location.href = "/";
+      const result = await auth.register(form);
+      if (result?.needsEmailConfirmation) {
+        setNeedsConfirmation(true);
+      } else {
+        window.location.href = "/";
+      }
     } catch (p) {
       setError(p.message || "Failed to create account");
     } finally {
       setLoading(false);
     }
   };
+
+  if (needsConfirmation) {
+    return (
+      <AuthLayout
+        icon={UserPlus}
+        title="Check your email"
+        subtitle="One more step to activate your account"
+        footer={
+          <Link to="/login" className="text-brand font-medium hover:underline">
+            Back to sign in
+          </Link>
+        }
+      >
+        <p className="text-sm text-mocha bg-mint/60 border border-mintdark rounded-md px-3 py-3">
+          We sent a confirmation link to <strong>{form.email}</strong>. Open it on this device to
+          activate your account — you won't be able to sign in until you do. Check your spam
+          folder if it doesn't arrive within a few minutes.
+        </p>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout
