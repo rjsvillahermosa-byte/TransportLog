@@ -419,7 +419,9 @@ function UserModal({ open, onClose, initial, currentEmail, actorRole, onSaved })
   const [error, setError] = useState("");
   const isSuperRow = initial?.role === "Super Admin";
   const roleOptions =
-    actorRole === "Super Admin" ? ["Staff", "Supervisor", "Admin"] : ["Staff", "Supervisor"];
+    actorRole === "Super Admin"
+      ? ["Staff", "Driver", "Supervisor", "Admin"]
+      : ["Staff", "Driver", "Supervisor"];
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const save = async () => {
@@ -479,6 +481,8 @@ function UserModal({ open, onClose, initial, currentEmail, actorRole, onSaved })
                   ? "Supervisor — can build & print reports"
                   : r === "Admin"
                   ? "Admin — manages the system"
+                  : r === "Driver"
+                  ? "Driver — starts & ends assigned missions"
                   : r}
               </option>
             ))}

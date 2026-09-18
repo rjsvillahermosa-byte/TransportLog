@@ -23,7 +23,7 @@ create table public.profiles (
   email text not null unique,
   password text,                             -- local mode only; unused in Supabase
   role text not null default 'Staff'
-    check (role in ('Super Admin', 'Admin', 'Supervisor', 'Staff')),
+    check (role in ('Super Admin', 'Admin', 'Supervisor', 'Driver', 'Staff')),
   status text not null default 'Active' check (status in ('Active', 'Disabled')),
   created_date timestamptz not null default now()
 );
@@ -55,7 +55,7 @@ create trigger on_auth_user_created
 -- drivers
 -- ---------------------------------------------------------------------------
 create table public.drivers (
-  id text primary key,
+  id text primary key default (gen_random_uuid())::text,
   full_name text not null,
   employee_id text,
   contact_number text,
@@ -74,7 +74,7 @@ create table public.drivers (
 -- vehicles
 -- ---------------------------------------------------------------------------
 create table public.vehicles (
-  id text primary key,
+  id text primary key default (gen_random_uuid())::text,
   plate_number text not null,
   unit_name text,
   model text,
@@ -98,7 +98,7 @@ create table public.vehicles (
 -- service_logs — PMS / repairs / tire replacement (asset records)
 -- ---------------------------------------------------------------------------
 create table public.service_logs (
-  id text primary key,
+  id text primary key default (gen_random_uuid())::text,
   vehicle_plate text not null,
   vehicle_id text,               -- optional future FK to vehicles.id
   service_type text not null,
@@ -121,7 +121,7 @@ create table public.service_logs (
 -- fuel_logs — fill-ups audited by the consumption engine
 -- ---------------------------------------------------------------------------
 create table public.fuel_logs (
-  id text primary key,
+  id text primary key default (gen_random_uuid())::text,
   vehicle_plate text not null,
   fill_date date not null,
   odometer integer not null,
@@ -138,7 +138,7 @@ create table public.fuel_logs (
 -- transport_requests — guest bookings + department errands
 -- ---------------------------------------------------------------------------
 create table public.transport_requests (
-  id text primary key,
+  id text primary key default (gen_random_uuid())::text,
   mission_id text not null,
   requester_type text not null default 'Guest',  -- 'Guest' | 'Errand'
   requested_by text,
@@ -155,6 +155,7 @@ create table public.transport_requests (
   vehicle_plate text,
   department text,
   special_notes text,
+  booked_by text,
   status text not null default 'Pending'
     check (status in ('Pending', 'In Progress', 'Completed')),
   created_date timestamptz not null default now()
@@ -164,7 +165,7 @@ create table public.transport_requests (
 -- mileage_logs — one per mission leg (ODO capture start → end)
 -- ---------------------------------------------------------------------------
 create table public.mileage_logs (
-  id text primary key,
+  id text primary key default (gen_random_uuid())::text,
   request_id text not null,
   mission_id text,
   driver_id text,
@@ -194,7 +195,7 @@ create table public.mileage_logs (
 -- incidents — voice/FO reported events with timestamps
 -- ---------------------------------------------------------------------------
 create table public.incidents (
-  id text primary key,
+  id text primary key default (gen_random_uuid())::text,
   type text not null,            -- Accident / Breakdown / Flat Tire / Emergency / Other
   detail text not null,
   mission_id text,
