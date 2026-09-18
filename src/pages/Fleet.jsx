@@ -42,6 +42,7 @@ import {
   Tabs,
   Textarea,
 } from "../components/ui";
+import { DatePicker } from "../components/DatePicker";
 import { useToast } from "../components/Layout";
 
 // ---------------------------------------------------------------------------
@@ -285,7 +286,10 @@ function DriverModal({ open, onClose, initial, onSaved }) {
         </div>
         <div className="space-y-1.5">
           <Label>License Expiry</Label>
-          <Input type="date" value={form.license_expiry} onChange={set("license_expiry")} />
+          <DatePicker
+            value={form.license_expiry}
+            onChange={(v) => setForm((f) => ({ ...f, license_expiry: v }))}
+          />
         </div>
         <div className="col-span-2 space-y-1.5">
           <Label>Assigned Vehicle Plate</Label>
@@ -515,7 +519,10 @@ function VehicleModal({ open, onClose, initial, onSaved }) {
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label>Registration Expiry (OR/CR)</Label>
-            <Input type="date" value={form.registration_expiry} onChange={set("registration_expiry")} />
+            <DatePicker
+              value={form.registration_expiry}
+              onChange={(v) => setForm((f) => ({ ...f, registration_expiry: v }))}
+            />
             <button
               type="button"
               onClick={() => regRef.current?.click()}
@@ -531,7 +538,10 @@ function VehicleModal({ open, onClose, initial, onSaved }) {
           </div>
           <div className="space-y-1.5">
             <Label>Insurance Expiry</Label>
-            <Input type="date" value={form.insurance_expiry} onChange={set("insurance_expiry")} />
+            <DatePicker
+              value={form.insurance_expiry}
+              onChange={(v) => setForm((f) => ({ ...f, insurance_expiry: v }))}
+            />
             <button
               type="button"
               onClick={() => insRef.current?.click()}

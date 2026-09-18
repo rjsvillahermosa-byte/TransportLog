@@ -12,6 +12,10 @@
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    // Without this, a remote (Supabase Storage) photo taints the canvas and
+    // ctx.getImageData() below throws a SecurityError — silently, since the
+    // caller just logs it — leaving the avatar stuck on "Generating...".
+    img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = src;
