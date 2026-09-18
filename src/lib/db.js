@@ -177,13 +177,13 @@ const supabaseUserAdmin = {
 // This never sends a confirmation email, so it can't be blocked by Supabase's
 // shared email rate limit the way the public signUp() path can — that limit
 // is what was breaking demo-account creation.
-async function callAdminCreateUser(body) {
+async function callEdgeFunction(name, body) {
   const sb = getSupabaseClient();
   const { data: sessData } = await sb.auth.getSession();
   const token = sessData?.session?.access_token;
   if (!token) throw new Error("You must be signed in to do this.");
   const { url } = getSupabaseConfig();
-  const res = await fetch(`${url}/functions/v1/admin-create-user`, {
+  const res = await fetch(`${url}/functions/v1/${name}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify(body),
@@ -192,6 +192,8 @@ async function callAdminCreateUser(body) {
   if (!res.ok) throw new Error(json.error || "Request failed");
   return json;
 }
+
+const callAdminCreateUser = (body) => callEdgeFunction("admin-create-user", body);
 
 const supabaseUserAdminAsync = {
   async addDemoUser() {
@@ -457,10 +459,17 @@ export const integrations = {
       console.info("[SendEmail simulated]", { to, subject, body });
       return { ok: true };
     },
-    // Original sends photos/documents to an LLM with a strict JSON schema.
-    // Here we simulate plausible extractions so the demo works fully offline;
-    // swap this stub for a real vision endpoint to go live.
-    async InvokeLLM({ prompt }) {
+    // Document/odometer OCR. `kind` is one of license | registration |
+    // insurance | casa | odometer. With Supabase active this calls the
+    // ocr-extract Edge Function (real vision model) and throws on failure —
+    // it must never fall back to invented data, or a fake license would be
+    // saved as if it were read. Without Supabase (offline demo mode) we
+    // simulate plausible extractions below.
+    async InvokeLLM({ prompt, kind, image_urls }) {
+      if (supabaseActive()) {
+        if (!kind) throw new Error("InvokeLLM requires a document kind.");
+        return callEdgeFunction("ocr-extract", { kind, image_urls });
+      }
       console.info("[InvokeLLM simulated]", prompt.slice(0, 120));
       await delay(1800);
       const isoInDays = (n) => {

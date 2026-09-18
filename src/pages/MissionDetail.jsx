@@ -47,6 +47,7 @@ function OdoCapture({ label, onCaptured, existing }) {
       setPhoto(file_url);
       if (isOnline()) {
         const res = await integrations.Core.InvokeLLM({
+          kind: "odometer",
           prompt: ODO_PROMPT,
           image_urls: [file_url],
           response_json_schema: { type: "object", properties: { odo_reading: { type: "number" } } },

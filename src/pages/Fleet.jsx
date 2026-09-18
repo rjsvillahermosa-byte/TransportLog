@@ -139,6 +139,7 @@ function DriverModal({ open, onClose, initial, onSaved }) {
       setLicensePhoto(file_url);
       makeAvatar(file_url);
       const res = await integrations.Core.InvokeLLM({
+        kind: "license",
         prompt: LICENSE_PROMPT,
         image_urls: [file_url],
         response_json_schema: { type: "object" },
@@ -152,8 +153,16 @@ function DriverModal({ open, onClose, initial, onSaved }) {
         license_expiry: res.license_expiry || f.license_expiry,
       }));
       setExtracted(res);
+      const filled = [res.full_name, res.license_number, res.license_expiry].filter(Boolean).length;
+      toast({
+        title: filled ? "License read" : "Couldn't read the license",
+        description: filled
+          ? "Review the auto-filled name, number and expiry before saving."
+          : "Try a sharper, well-lit photo, or enter the details manually.",
+      });
     } catch (err) {
       console.error("License OCR failed:", err);
+      toast({ title: "License scan failed", description: `${err.message} Enter the details manually.` });
     } finally {
       setScanning(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -358,6 +367,7 @@ function VehicleModal({ open, onClose, initial, onSaved }) {
     try {
       const { file_url } = await integrations.Core.UploadFile({ file });
       const res = await integrations.Core.InvokeLLM({
+        kind,
         prompt: kind === "registration" ? REG_PROMPT : INS_PROMPT,
         image_urls: [file_url],
         response_json_schema: { type: "object" },
@@ -370,6 +380,7 @@ function VehicleModal({ open, onClose, initial, onSaved }) {
       }));
     } catch (err) {
       console.error("Document OCR failed:", err);
+      toast({ title: "Document scan failed", description: `${err.message} Enter the expiry date manually.` });
     } finally {
       setScanningDoc(null);
       e.target.value = "";
@@ -619,6 +630,7 @@ function ServiceModal({ open, onClose, vehicles, presetPlate, onSaved }) {
       const { file_url } = await integrations.Core.UploadFile({ file });
       setReportPhoto(file_url);
       const res = await integrations.Core.InvokeLLM({
+        kind: "casa",
         prompt: CASA_PROMPT,
         image_urls: [file_url],
         response_json_schema: { type: "object" },
