@@ -3,14 +3,19 @@
 // structured fields the FleetFlow forms auto-fill from.
 //
 // Deploy:   supabase functions deploy ocr-extract --project-ref <ref>
-// Secrets:  supabase secrets set ANTHROPIC_API_KEY=sk-ant-... --project-ref <ref>
-//           (optional) OCR_MODEL=claude-sonnet-5
+// Secrets (set ONE provider key):
+//   GEMINI_API_KEY     — Google AI Studio, free tier. NOTE: on the free tier Google
+//                        may use submitted images to improve its products.
+//   ANTHROPIC_API_KEY  — Claude vision, paid, not used for training.
+//   OCR_PROVIDER=gemini|claude (optional, else inferred from which key exists)
+//   OCR_MODEL (optional; defaults gemini-2.5-flash / claude-sonnet-5)
 //
 // Security: the anon key is public, so the gateway's verify_jwt alone would let
 // anyone burn the API key. We additionally require a real signed-in user, and
 // only accept images hosted in this project's own public storage.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { encodeBase64 } from "jsr:@std/encoding@1/base64";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -91,14 +96,112 @@ const SCHEMAS: Record<Kind, { intro: string; properties: Record<string, unknown>
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+type Schema = (typeof SCHEMAS)[Kind];
+
+const SYSTEM_PROMPT =
+  "You extract text fields from photos of documents for a fleet-management app. " +
+  "Transcribe only what is actually printed. Never guess or invent a value: if a field is " +
+  "missing, cropped, glared or unreadable, return null for it and lower the confidence.";
+
+async function extractWithClaude(apiKey: string, schema: Schema, imageUrl: string) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({
+      model: Deno.env.get("OCR_MODEL") ?? "claude-sonnet-5",
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
+      tools: [
+        {
+          name: "record_extraction",
+          description: `Record the fields read from ${schema.intro}.`,
+          input_schema: { type: "object", properties: schema.properties, required: ["confidence"] },
+        },
+      ],
+      tool_choice: { type: "tool", name: "record_extraction" },
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image", source: { type: "url", url: imageUrl } },
+            { type: "text", text: `This is a photo of ${schema.intro}. Read it and record the fields.` },
+          ],
+        },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text().catch(() => "")}`);
+  const result = await res.json();
+  const toolUse = result.content?.find((c: { type: string }) => c.type === "tool_use");
+  if (!toolUse?.input) throw new Error("Anthropic returned no tool_use block");
+  return toolUse.input as Record<string, unknown>;
+}
+
+// Gemini's responseSchema is an OpenAPI subset: uppercase type names and
+// `nullable: true` instead of JSON-Schema `["string", "null"]` unions.
+// deno-lint-ignore no-explicit-any
+function toGeminiSchema(s: any): unknown {
+  if (Array.isArray(s.type)) {
+    const type = s.type.find((t: string) => t !== "null");
+    return { type: type.toUpperCase(), nullable: true, description: s.description };
+  }
+  if (s.type === "array") return { type: "ARRAY", items: toGeminiSchema(s.items), description: s.description };
+  return { type: s.type.toUpperCase(), description: s.description };
+}
+
+async function extractWithGemini(apiKey: string, schema: Schema, imageUrl: string) {
+  // Gemini can't fetch URLs itself, so pull the image and inline it.
+  const img = await fetch(imageUrl);
+  if (!img.ok) throw new Error(`Could not fetch image (${img.status})`);
+  const mimeType = img.headers.get("content-type") ?? "image/jpeg";
+  const data = encodeBase64(new Uint8Array(await img.arrayBuffer()));
+
+  const properties = Object.fromEntries(Object.entries(schema.properties).map(([k, v]) => [k, toGeminiSchema(v)]));
+  const model = Deno.env.get("OCR_MODEL") ?? "gemini-2.5-flash";
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: "POST",
+    headers: { "x-goog-api-key": apiKey, "content-type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inlineData: { mimeType, data } },
+            { text: `This is a photo of ${schema.intro}. Read it and return the fields.` },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: { type: "OBJECT", properties, required: ["confidence"] },
+        temperature: 0,
+      },
+    }),
+  });
+  if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text().catch(() => "")}`);
+  const result = await res.json();
+  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("Gemini returned no content");
+  return JSON.parse(text) as Record<string, unknown>;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) return json({ error: "OCR is not configured (missing ANTHROPIC_API_KEY)." }, 500);
+  // Provider: OCR_PROVIDER=gemini|claude, else whichever key is configured
+  // (Gemini first — it has a free tier).
+  const geminiKey = Deno.env.get("GEMINI_API_KEY");
+  const claudeKey = Deno.env.get("ANTHROPIC_API_KEY");
+  const provider = Deno.env.get("OCR_PROVIDER") ?? (geminiKey ? "gemini" : "claude");
+  const apiKey = provider === "gemini" ? geminiKey : claudeKey;
+  if (!apiKey) {
+    const needed = provider === "gemini" ? "GEMINI_API_KEY" : "ANTHROPIC_API_KEY";
+    return json({ error: `OCR is not configured (missing ${needed}).` }, 500);
+  }
 
   // Require a real signed-in user, not just the public anon key.
   const authHeader = req.headers.get("Authorization") ?? "";
@@ -123,48 +226,17 @@ Deno.serve(async (req) => {
     return json({ error: "image_urls[0] must be an image uploaded to this project's storage." }, 400);
   }
 
-  const model = Deno.env.get("OCR_MODEL") ?? "claude-sonnet-5";
-  const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({
-      model,
-      max_tokens: 1024,
-      system:
-        "You extract text fields from photos of documents for a fleet-management app. " +
-        "Transcribe only what is actually printed. Never guess or invent a value: if a field is " +
-        "missing, cropped, glared or unreadable, return null for it and lower the confidence.",
-      tools: [
-        {
-          name: "record_extraction",
-          description: `Record the fields read from ${schema.intro}.`,
-          input_schema: { type: "object", properties: schema.properties, required: ["confidence"] },
-        },
-      ],
-      tool_choice: { type: "tool", name: "record_extraction" },
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "image", source: { type: "url", url: imageUrl } },
-            { type: "text", text: `This is a photo of ${schema.intro}. Read it and record the fields.` },
-          ],
-        },
-      ],
-    }),
-  });
-
-  if (!anthropicRes.ok) {
-    const detail = await anthropicRes.text().catch(() => "");
-    console.error("Anthropic error", anthropicRes.status, detail);
-    return json({ error: `The reading service failed (${anthropicRes.status}).` }, 502);
+  let extracted: Record<string, unknown>;
+  try {
+    extracted =
+      provider === "gemini"
+        ? await extractWithGemini(apiKey, schema, imageUrl)
+        : await extractWithClaude(apiKey, schema, imageUrl);
+  } catch (err) {
+    console.error(`${provider} OCR error`, err);
+    return json({ error: "The reading service failed. Please try again." }, 502);
   }
 
-  const result = await anthropicRes.json();
-  const toolUse = result.content?.find((c: { type: string }) => c.type === "tool_use");
-  if (!toolUse?.input) return json({ error: "The reading service returned nothing usable." }, 502);
-
-  const extracted = toolUse.input as Record<string, unknown>;
   for (const field of schema.dates) {
     if (typeof extracted[field] !== "string" || !ISO_DATE.test(extracted[field] as string)) {
       extracted[field] = null;
