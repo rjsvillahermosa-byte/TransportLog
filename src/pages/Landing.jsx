@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import LiveBackground from "../components/LiveBackground";
 import {
   ArrowRight,
   BellRing,
@@ -144,6 +145,7 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen">
+      <LiveBackground />
       <header className="sticky top-0 z-30 border-b border-sand/60 bg-cream/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           <a href="#top" className="flex items-center gap-2.5">

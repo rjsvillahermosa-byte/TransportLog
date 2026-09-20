@@ -4,6 +4,7 @@ import { Car, Mail } from "lucide-react";
 import { Button, Input, Label } from "../components/ui";
 import { auth } from "../lib/db";
 import { useBranding } from "../lib/branding";
+import LiveBackground from "../components/LiveBackground";
 
 function GoogleIcon() {
   return (
@@ -20,6 +21,7 @@ export function AuthLayout({ icon: Icon = Car, title, subtitle, footer, children
   const brand = useBranding();
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10">
+      <LiveBackground />
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
           {brand.logo ? (

@@ -159,3 +159,61 @@
     padding: 0;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Live background — slow drifting blobs behind the public pages (landing,
+   login, register). Colors come from the theme tokens so Brand Theme still
+   applies; motion is off for anyone who prefers reduced motion.
+--------------------------------------------------------------------------- */
+.live-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.live-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  will-change: transform;
+}
+.live-blob-a {
+  top: -14vmax;
+  right: -10vmax;
+  width: 52vmax;
+  height: 52vmax;
+  background: rgb(207 227 214 / 0.85);
+  animation: live-drift-a 22s ease-in-out infinite;
+}
+.live-blob-b {
+  bottom: -18vmax;
+  left: -14vmax;
+  width: 58vmax;
+  height: 58vmax;
+  background: rgb(var(--brand) / 0.14);
+  animation: live-drift-b 28s ease-in-out infinite;
+}
+.live-blob-c {
+  top: 38%;
+  left: 42%;
+  width: 34vmax;
+  height: 34vmax;
+  background: rgb(var(--accent) / 0.16);
+  animation: live-drift-c 34s ease-in-out infinite;
+}
+@keyframes live-drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-8vmax, 6vmax, 0) scale(1.12); }
+}
+@keyframes live-drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(9vmax, -7vmax, 0) scale(1.1); }
+}
+@keyframes live-drift-c {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-6vmax, -5vmax, 0) scale(1.18); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-blob { animation: none; }
+}
