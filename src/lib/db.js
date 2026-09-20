@@ -158,8 +158,27 @@ const supabaseAuth = {
     const { error } = await sb.auth.updateUser({ password: new_password });
     if (error) throw new Error(error.message);
   },
-  logout() {
-    getSupabaseClient()?.auth.signOut();
+  // Callers reload the page right after this, so it must finish clearing the
+  // session first — an un-awaited signOut() loses the race against the reload,
+  // leaving the session in storage so /login bounces straight back in.
+  async logout() {
+    try {
+      await Promise.race([
+        getSupabaseClient()?.auth.signOut(),
+        new Promise((resolve) => setTimeout(resolve, 3000)), // don't hang if offline
+      ]);
+    } catch (err) {
+      console.error("Sign out request failed:", err);
+    }
+    // Backstop: drop the stored session ourselves so sign-out works even when
+    // the request above failed or timed out.
+    try {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("sb-") && k.endsWith("-auth-token"))
+        .forEach((k) => localStorage.removeItem(k));
+    } catch {
+      /* storage unavailable */
+    }
   },
 };
 

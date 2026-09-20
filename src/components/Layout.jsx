@@ -147,8 +147,8 @@ export default function Layout({ user, children }) {
 
   useEffect(() => setMenuOpen(false), [location.pathname]);
 
-  const logout = () => {
-    auth.logout();
+  const logout = async () => {
+    await auth.logout();
     window.location.href = "/login";
   };
 

@@ -207,8 +207,8 @@ export default function Missions({ user }) {
           variant="outline"
           size="sm"
           className="flex-none"
-          onClick={() => {
-            auth.logout();
+          onClick={async () => {
+            await auth.logout();
             window.location.href = "/login"; // full reload clears in-memory session
           }}
         >
