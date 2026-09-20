@@ -18,16 +18,28 @@ import History from "./pages/History";
 import QrCodes from "./pages/QrCodes";
 import Settings, { AdminOnlyNotice } from "./pages/Settings";
 import Reports from "./pages/Reports";
+import Landing from "./pages/Landing";
 import { LoginPage } from "./pages/Auth";
 import { RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./pages/AuthExtra";
 
 const AUTH_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
+
+function isInstalledApp() {
+  return Boolean(
+    window.Capacitor?.isNativePlatform?.() ||
+      window.matchMedia?.("(display-mode: standalone)").matches ||
+      window.navigator.standalone
+  );
+}
 
 function Shell() {
   const [user, setUser] = useState(null);
   const [booting, setBooting] = useState(true);
   const location = useLocation();
   const isAuthPath = AUTH_PATHS.includes(location.pathname);
+  // Public landing page for logged-out web visitors only. Installed apps (the
+  // Capacitor APK and the PWA) go straight to login.
+  const isLanding = !user && location.pathname === "/" && !isInstalledApp();
 
   useEffect(() => {
     seedIfNeeded();
@@ -39,6 +51,7 @@ function Shell() {
 
   if (booting) return null;
 
+  if (isLanding) return <Landing />;
   if (!user && !isAuthPath) return <Navigate to="/login" replace />;
   if (user && isAuthPath) return <Navigate to="/" replace />;
 
