@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import {
+  Building2,
   Cloud,
   CloudOff,
   Crown,
@@ -17,6 +18,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { auth, drainQueue, integrations, resetTransportData, useOnline, usePendingCount, userAdmin } from "../lib/db";
+import { getSupabaseClient, supabaseActive } from "../lib/supabaseClient";
 import { getFuelConfig, saveFuelConfig } from "../lib/fuel";
 import { applyTheme, DEFAULT_THEME, getTheme, resetTheme, saveTheme, THEME_PRESETS } from "../lib/theme";
 import {
@@ -517,6 +519,62 @@ function UserModal({ open, onClose, initial, currentEmail, actorRole, onSaved })
   );
 }
 
+// Join an organization with a client code (0006 join_org_with_code).
+// For accounts created before tenancy or invited offline — the signup form
+// asks for the code, but existing users had no self-serve path until now.
+function JoinOrgCard({ user }) {
+  const toast = useToast();
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (!supabaseActive()) return null;
+
+  const join = async () => {
+    if (!code.trim()) return;
+    setBusy(true);
+    try {
+      const sb = getSupabaseClient();
+      const { data, error } = await sb.rpc("join_org_with_code", { p_code: code.trim() });
+      if (error) throw new Error(error.message);
+      toast({
+        title: data?.already_member ? "Already a member" : `Joined ${data?.organization}`,
+        description: data?.already_member
+          ? `You're linked to ${data?.organization} as ${data?.role}.`
+          : "Your account is linked — new entries now save to this organization's workspace.",
+      });
+      setCode("");
+    } catch (err) {
+      console.error("Join organization failed:", err);
+      toast({ title: "Couldn't join", description: err.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-3xl shadow-card p-5 mb-6">
+      <div className="flex items-center gap-2">
+        <Building2 className="w-4 h-4 text-brand" />
+        <h3 className="text-sm font-semibold text-cocoa">Join an organization</h3>
+      </div>
+      <p className="text-xs text-taupe mt-1 mb-3">
+        Given a client code (like TLF-001)? Enter it once to link {user?.email || "your account"} to that fleet.
+      </p>
+      <div className="flex gap-2">
+        <Input
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          onKeyDown={(e) => e.key === "Enter" && join()}
+          placeholder="CLIENT CODE"
+          className="uppercase"
+        />
+        <Button onClick={join} disabled={busy || !code.trim()}>
+          {busy ? <Spinner className="w-4 h-4" /> : "Link account"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function Settings({ user }) {
   const online = useOnline();
   const pending = usePendingCount();
@@ -635,6 +693,9 @@ export default function Settings({ user }) {
       </div>
       <h1 className="text-2xl font-heading font-bold text-cocoa">Settings</h1>
       <p className="text-sm text-taupe mt-1 mb-6">Brand theme, team accounts, sync status & data management</p>
+
+      {/* Link this account to a fleet org with a client code (0006) */}
+      <JoinOrgCard user={user} />
 
       {/* Brand theme — match the hotel / company palette */}
       <div className="bg-white rounded-3xl shadow-card p-5 mb-6">
