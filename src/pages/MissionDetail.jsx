@@ -279,8 +279,9 @@ export default function MissionDetail() {
       await api.entities.TransportRequest.delete(id);
       toast({ title: "Booking deleted" });
       navigate("/");
-    } catch {
-      toast({ title: "Error", description: "Failed to delete booking." });
+    } catch (err) {
+      console.error("Failed to delete booking:", err);
+      toast({ title: "Error", description: err?.message || "Failed to delete booking." });
     } finally {
       setDeleting(false);
     }
@@ -332,8 +333,9 @@ export default function MissionDetail() {
         toast({ title: "Mission started (offline)", description: "Saved offline. Will sync when back online." });
       }
       tracker.start();
-    } catch {
-      toast({ title: "Error", description: "Failed to start mission." });
+    } catch (err) {
+      console.error("Failed to start mission:", err);
+      toast({ title: "Error", description: err?.message || "Failed to start mission." });
     } finally {
       setBusy(false);
     }
@@ -379,8 +381,9 @@ export default function MissionDetail() {
       }
       setRequest((r) => ({ ...r, status: "Completed" }));
       navigate("/");
-    } catch {
-      toast({ title: "Error", description: "Failed to end mission." });
+    } catch (err) {
+      console.error("Failed to end mission:", err);
+      toast({ title: "Error", description: err?.message || "Failed to end mission." });
     } finally {
       setBusy(false);
     }

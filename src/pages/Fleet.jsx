@@ -184,7 +184,7 @@ function DriverModal({ open, onClose, initial, onSaved }) {
       onSaved();
     } catch (err) {
       console.error("Failed to save driver:", err);
-      toast({ title: "Error", description: "Failed to save driver." });
+      toast({ title: "Error", description: err?.message || "Failed to save driver." });
     } finally {
       setBusy(false);
     }
@@ -405,7 +405,9 @@ function VehicleModal({ open, onClose, initial, onSaved }) {
       onSaved();
     } catch (err) {
       console.error("Failed to save vehicle:", err);
-      toast({ title: "Error", description: "Failed to save vehicle." });
+      // Surface the real DB/RLS message — generic text hides diagnoses like
+      // "new row violates row-level security policy" (missing org stamp).
+      toast({ title: "Error", description: err?.message || "Failed to save vehicle." });
     } finally {
       setBusy(false);
     }
@@ -684,7 +686,7 @@ function ServiceModal({ open, onClose, vehicles, presetPlate, onSaved }) {
       onSaved();
     } catch (err) {
       console.error("Failed to save service log:", err);
-      toast({ title: "Error", description: "Failed to save service log." });
+      toast({ title: "Error", description: err?.message || "Failed to save service log." });
     } finally {
       setBusy(false);
     }

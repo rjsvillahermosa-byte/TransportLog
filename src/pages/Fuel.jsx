@@ -99,9 +99,10 @@ function LogFillModal({ open, onClose, vehicles, onSaved }) {
       setBusy(false);
       toast({ title: "Fill-up logged", description: "Consumption audit will update instantly." });
       onSaved();
-    } catch {
+    } catch (err) {
+      console.error("Failed to log fill-up:", err);
       setBusy(false);
-      toast({ title: "Error", description: "Failed to log fill-up." });
+      toast({ title: "Error", description: err?.message || "Failed to log fill-up." });
     }
   };
 

@@ -101,8 +101,9 @@ export default function NewBooking({ user }) {
         description: `Mission ${mission_id} has been scheduled.`,
       });
       navigate("/");
-    } catch {
-      toast({ title: "Error", description: "Failed to create booking." });
+    } catch (err) {
+      console.error("Failed to create booking:", err);
+      toast({ title: "Error", description: err?.message || "Failed to create booking." });
     } finally {
       setLoading(false);
     }
