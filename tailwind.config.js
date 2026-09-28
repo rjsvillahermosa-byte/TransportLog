@@ -1,6 +1,8 @@
 /** @type {import('tailwindcss').Config} */
-// Theme: warm car-sharing design language — cream canvas, mint blobs,
-// deep teal primary, gold + burnt-orange accents, chocolate text.
+// Theme: TransportLog Brand Kit — cream canvas, mint blobs,
+// deep navy primary (#1A2B48), bright-orange accent (#FF6B2C, CTAs/highlights only),
+// chocolate text. Brand + accent are CSS-variable backed (see :root in index.css and
+// src/lib/theme.js) so Settings → Brand Theme can swap them at runtime.
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {

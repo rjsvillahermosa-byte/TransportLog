@@ -238,14 +238,14 @@ export default function Layout({ user, children }) {
                   className="rounded-2xl object-cover border border-sand bg-white flex-none"
                 />
               ) : (
-                <div className="w-9 h-9 rounded-2xl bg-mint flex items-center justify-center flex-none">
-                  <Car className="w-5 h-5 text-brand" />
+                <div className="w-9 h-9 rounded-2xl bg-brand flex items-center justify-center flex-none">
+                  <Car className="w-5 h-5 text-white" />
                 </div>
               )}
               <span className="font-heading font-extrabold text-base sm:text-lg tracking-wider uppercase text-cocoa truncate max-w-[170px] xl:max-w-[240px]">
-                {!brand.logo && brand.name === "TransportLog" ? (
+                {!brand.logo && brand.name === "FleetFlow" ? (
                   <>
-                    Transport<span className="text-brand">Log</span>
+                    Fleet<span className="text-brand">Flow</span>
                   </>
                 ) : (
                   brand.name

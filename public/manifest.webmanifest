@@ -1,12 +1,12 @@
 {
-  "name": "TransportLog — FleetFlow",
-  "short_name": "TransportLog",
+  "name": "FleetFlow — Hotel Transport Management",
+  "short_name": "FleetFlow",
   "description": "An intelligent hotel transport management system that automates mileage tracking, driver mission dispatch, and ODO verification via AI-powered photo extraction.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#FAF3E7",
-  "theme_color": "#1E7A5A",
+  "theme_color": "#1A2B48",
   "icons": [
     {
       "src": "/logo.svg",

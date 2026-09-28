@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FleetFlow — Fuel &amp; Route Savings Finder</title>
+<meta name="description" content="See how much your Philippine fleet could save on fuel. Track trips, analyze routes, and cut waste — free for up to 3 vehicles.">
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
+<style>
+  :root {
+    --brand: #1A2B48;        /* Deep Navy — FleetFlow Brand Kit */
+    --brand-dark: #142138;
+    --brand-deep: #0F1B30;
+    --accent: #FF6B2C;       /* Bright Orange — CTAs & highlights only */
+    --cream: #FAF3E7;
+    --sand: #E8DFD0;
+    --mint: #CFE3D6;
+    --cocoa: #2E2218;
+    --mocha: #5A4C3F;
+    --taupe: #8A8378;
+    --good: #1E7A5A;         /* functional route-efficiency colors */
+    --warn: #C9970B;
+    --bad: #B4552D;
+    --radius: 16px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--cream);
+    color: var(--cocoa);
+    line-height: 1.6;
+  }
+  .container { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    background: var(--brand-deep);
+    color: #fff;
+    padding: 14px 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 12px rgba(15, 27, 48, .25);
+  }
+  .topbar-inner { display: flex; align-items: center; justify-content: space-between; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; letter-spacing: .3px; color: #fff; }
+  .logo-mark {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .28);
+    display: grid; place-items: center;
+  }
+  .logo-mark svg { display: block; }
+  .topbar nav { display: flex; align-items: center; gap: 22px; }
+  .topbar nav a { color: #E7F0EA; text-decoration: none; font-size: 14.5px; font-weight: 600; }
+  .topbar nav a:hover { color: var(--accent); }
+  .btn-topbar {
+    background: var(--accent); color: var(--brand); border: none;
+    padding: 9px 18px; border-radius: 999px; font-weight: 800; font-size: 14px;
+    cursor: pointer; text-decoration: none; transition: transform .15s, box-shadow .15s;
+  }
+  .btn-topbar:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(255, 107, 44, .4); }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    background:
+      radial-gradient(1000px 420px at 85% -10%, rgba(255, 107, 44, .14), transparent 60%),
+      radial-gradient(900px 420px at -10% 110%, rgba(255, 255, 255, .07), transparent 55%),
+      linear-gradient(160deg, var(--brand-deep) 0%, var(--brand) 100%);
+    color: #fff;
+    text-align: center;
+    padding: 84px 0 88px;
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255, 255, 255, .1);
+    border: 1px solid rgba(255, 255, 255, .22);
+    padding: 7px 16px; border-radius: 999px;
+    font-size: 13px; font-weight: 700; letter-spacing: .6px;
+    margin-bottom: 26px;
+  }
+  .hero h1 {
+    font-size: clamp(30px, 4.6vw, 50px);
+    line-height: 1.15;
+    font-weight: 800;
+    max-width: 860px;
+    margin: 0 auto 22px;
+  }
+  .hero h1 .under { color: var(--accent); }
+  .hero .lead { max-width: 720px; margin: 0 auto; font-size: 17px; color: #DCEAE2; }
+  .hero .lead strong { color: #fff; }
+  .hero .flow {
+    margin: 28px auto 8px;
+    font-size: 16px; font-weight: 700; letter-spacing: .4px; color: var(--accent);
+  }
+  .hero .micro { max-width: 700px; margin: 14px auto 34px; font-size: 15.5px; color: #C9DED3; }
+  .hero .micro strong { color: #fff; }
+  .btn-hero {
+    display: inline-block;
+    background: var(--accent); color: var(--brand);
+    font-size: 17px; font-weight: 800; letter-spacing: .4px;
+    padding: 17px 40px; border-radius: 999px;
+    text-decoration: none;
+    box-shadow: 0 10px 30px rgba(255, 107, 44, .35);
+    transition: transform .15s, box-shadow .15s;
+  }
+  .btn-hero:hover { transform: translateY(-2px); box-shadow: 0 14px 36px rgba(255, 107, 44, .45); }
+  .btn-hero .rocket { font-size: 19px; margin-right: 8px; }
+
+  /* ---------- Analyzer ---------- */
+  .analyzer { padding: 64px 0 80px; }
+  .kicker {
+    color: var(--brand); font-weight: 800; letter-spacing: 2.5px;
+    font-size: 12.5px; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .analyzer-head { text-align: center; margin-bottom: 28px; }
+  .analyzer-head h2 { font-size: clamp(24px, 3vw, 34px); font-weight: 800; }
+
+  .searchbar { display: flex; gap: 10px; max-width: 660px; margin: 0 auto 18px; }
+  .searchbar input {
+    flex: 1; border: 2px solid var(--sand);
+    border-radius: 12px; padding: 14px 18px;
+    font-size: 15.5px; background: #fff; color: var(--cocoa);
+    outline: none; transition: border-color .15s;
+  }
+  .searchbar input:focus { border-color: var(--brand); }
+  .searchbar button {
+    background: var(--brand); color: #fff; border: none;
+    border-radius: 12px; padding: 0 28px; font-size: 19px; font-weight: 700;
+    cursor: pointer; transition: background .15s;
+  }
+  .searchbar button:hover { background: var(--brand-dark); }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 9px; justify-content: center; margin-bottom: 26px; }
+  .chip {
+    border: 2px solid var(--sand); background: #fff; color: var(--mocha);
+    border-radius: 999px; padding: 8px 17px;
+    font-size: 13.5px; font-weight: 700; cursor: pointer;
+    transition: all .15s; font-family: inherit;
+  }
+  .chip:hover { border-color: var(--brand); color: var(--brand); }
+  .chip.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+  .analyzer-grid { display: grid; grid-template-columns: 300px 1fr; gap: 22px; align-items: stretch; }
+
+  .summary-card {
+    background: #fff; border: 1px solid var(--sand); border-radius: var(--radius);
+    padding: 22px; display: flex; flex-direction: column; gap: 12px;
+    box-shadow: 0 6px 24px rgba(46, 34, 24, .07);
+  }
+  .summary-card h3 { font-size: 14px; letter-spacing: 1.2px; color: var(--taupe); text-transform: uppercase; }
+  .legend-row { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+  .dot { width: 14px; height: 14px; border-radius: 4px; flex: none; }
+  .dot-good { background: var(--good); }
+  .dot-avg { background: var(--warn); }
+  .dot-bad { background: var(--bad); }
+  .summary-stats-row { display: grid; gap: 12px; margin-top: 4px; }
+  .summary-stat { background: var(--cream); border-radius: 12px; padding: 13px 16px; }
+  .summary-stat .label { font-size: 12px; color: var(--taupe); font-weight: 700; letter-spacing: .4px; }
+  .summary-stat .value { font-size: 23px; font-weight: 800; color: var(--brand); }
+  .summary-stat .value.muted { color: var(--taupe); }
+  .summary-note { font-size: 12.5px; color: var(--taupe); margin-top: auto; line-height: 1.5; }
+
+  .map-card {
+    background: #fff; border: 1px solid var(--sand); border-radius: var(--radius);
+    overflow: hidden; position: relative;
+    box-shadow: 0 6px 24px rgba(46, 34, 24, .07);
+    display: flex;
+  }
+  #ph-map { flex: 1; min-height: 480px; }
+  .map-hint {
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    background: rgba(26, 43, 72, .85); color: #fff;
+    font-size: 12.5px; font-weight: 600;
+    padding: 8px 16px; border-radius: 999px; white-space: nowrap;
+    pointer-events: none; z-index: 500;
+  }
+  .map-error {
+    position: absolute; inset: 0; display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    background: var(--cream); text-align: center; padding: 24px; z-index: 600;
+  }
+  .map-error.show { display: flex; }
+  .map-error p { color: var(--mocha); font-size: 15px; max-width: 340px; }
+  .map-error button {
+    background: var(--brand); color: #fff; border: none;
+    padding: 10px 22px; border-radius: 999px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+
+  .route-detail {
+    margin-top: 22px; background: #fff; border: 1px solid var(--sand);
+    border-radius: var(--radius); padding: 26px 28px;
+    box-shadow: 0 6px 24px rgba(46, 34, 24, .07);
+    display: none;
+  }
+  .route-detail.show { display: block; animation: fadeUp .3s ease; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .route-detail-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  .route-detail-head h3 { font-size: 21px; font-weight: 800; }
+  .route-detail-head .tag {
+    font-size: 12px; font-weight: 800; letter-spacing: .5px;
+    padding: 4px 12px; border-radius: 999px; white-space: nowrap;
+  }
+  .tag-good { background: rgba(30, 122, 90, .14); color: var(--good); }
+  .tag-avg { background: rgba(201, 151, 11, .16); color: var(--warn); }
+  .tag-bad { background: rgba(180, 85, 45, .14); color: var(--bad); }
+  .route-detail .sub { color: var(--taupe); font-size: 14px; margin-bottom: 18px; }
+  .route-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+  .route-stat { background: var(--cream); border-radius: 12px; padding: 14px 16px; }
+  .route-stat .label { font-size: 12px; color: var(--taupe); font-weight: 700; letter-spacing: .4px; }
+  .route-stat .value { font-size: 21px; font-weight: 800; color: var(--cocoa); margin-top: 2px; }
+  .route-stat .value.good { color: var(--good); }
+  .route-stat .value.accent { color: var(--brand); }
+  .improve-title { font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: var(--taupe); font-weight: 800; margin-bottom: 10px; }
+  .improve-list { list-style: none; display: grid; gap: 9px; }
+  .improve-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 14.5px; color: var(--mocha); }
+  .improve-list li::before { content: "\2705"; font-size: 14px; line-height: 1.6; }
+  .route-cta-row { margin-top: 22px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .btn-route {
+    background: var(--brand); color: #fff; text-decoration: none;
+    padding: 12px 26px; border-radius: 999px; font-weight: 800; font-size: 14.5px;
+    transition: background .15s;
+  }
+  .btn-route:hover { background: var(--brand-dark); }
+  .route-cta-note { font-size: 13px; color: var(--taupe); }
+
+  .analyzer-footnote { margin-top: 20px; text-align: center; font-size: 13px; color: var(--taupe); }
+
+  /* ---------- How it works ---------- */
+  .how { background: #fff; padding: 72px 0; border-top: 1px solid var(--sand); border-bottom: 1px solid var(--sand); }
+  .how h2 { text-align: center; font-size: clamp(24px, 3vw, 34px); font-weight: 800; margin-bottom: 44px; }
+  .how-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .how-card { background: var(--cream); border-radius: var(--radius); padding: 30px 26px; text-align: center; }
+  .how-num {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--brand); color: #fff; font-weight: 800; font-size: 18px;
+    display: grid; place-items: center; margin: 0 auto 16px;
+  }
+  .how-card h3 { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+  .how-card p { font-size: 14.5px; color: var(--mocha); }
+  .how-checks {
+    display: flex; flex-wrap: wrap; gap: 10px 26px; justify-content: center;
+    margin-top: 40px; font-size: 14.5px; font-weight: 600; color: var(--mocha);
+  }
+  .how-checks span::before { content: "\2705  "; }
+
+  /* ---------- Features ---------- */
+  .features { padding: 72px 0; }
+  .features h2 { text-align: center; font-size: clamp(24px, 3vw, 34px); font-weight: 800; margin-bottom: 44px; }
+  .features-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .feature-card {
+    background: #fff; border: 1px solid var(--sand); border-radius: var(--radius);
+    padding: 26px 22px; transition: transform .15s, box-shadow .15s;
+  }
+  .feature-card:hover { transform: translateY(-4px); box-shadow: 0 10px 26px rgba(46, 34, 24, .1); }
+  .feature-icon {
+    width: 48px; height: 48px; border-radius: 13px;
+    background: rgba(26, 43, 72, .10); display: grid; place-items: center;
+    font-size: 22px; margin-bottom: 16px;
+  }
+  .feature-card h3 { font-size: 16.5px; font-weight: 800; margin-bottom: 8px; }
+  .feature-card p { font-size: 14px; color: var(--mocha); }
+
+  /* ---------- Final CTA ---------- */
+  .final {
+    background: linear-gradient(160deg, var(--brand-deep), var(--brand-dark));
+    color: #fff; text-align: center; padding: 76px 0;
+  }
+  .final h2 { font-size: clamp(26px, 3.4vw, 38px); font-weight: 800; margin-bottom: 14px; }
+  .final p { max-width: 640px; margin: 0 auto 30px; color: #DCEAE2; font-size: 16.5px; }
+  .btn-final {
+    display: inline-block; background: var(--accent); color: var(--brand);
+    font-size: 17px; font-weight: 800; padding: 16px 38px;
+    border-radius: 999px; text-decoration: none;
+    box-shadow: 0 10px 30px rgba(255, 107, 44, .35);
+    transition: transform .15s;
+  }
+  .btn-final:hover { transform: translateY(-2px); }
+  .final-checks {
+    display: flex; flex-wrap: wrap; gap: 10px 26px; justify-content: center;
+    margin-top: 30px; font-size: 14.5px; color: #DCEAE2;
+  }
+  .final-checks span::before { content: "\2705  "; }
+
+  /* ---------- Footer ---------- */
+  footer { background: var(--brand-deep); color: #B7C2D4; text-align: center; padding: 26px 0; font-size: 13.5px; }
+  footer strong { color: #fff; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 900px) {
+    .analyzer-grid { grid-template-columns: 1fr; }
+    .summary-card { order: -1; }
+    .features-grid { grid-template-columns: repeat(2, 1fr); }
+    .how-grid { grid-template-columns: 1fr; }
+    .route-stats { grid-template-columns: 1fr 1fr; }
+    .topbar nav a:not(.btn-topbar) { display: none; }
+  }
+  @media (max-width: 520px) {
+    .searchbar { flex-direction: column; }
+    .searchbar button { padding: 13px; }
+    .features-grid { grid-template-columns: 1fr; }
+    .route-stats { grid-template-columns: 1fr; }
+    #ph-map { min-height: 380px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ======================= TOP BAR ======================= -->
+<header class="topbar">
+  <div class="container topbar-inner">
+    <div class="logo"><span class="logo-mark"><svg width="20" height="20" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><path fill="#FF6B2C" d="M20,30 C15.9,25 10,21.3 10,14.8 a10,10 0 1,1 20,0 C30,21.3 24.1,25 20,30 Z"/><circle cx="20" cy="14.8" r="4.2" fill="#0F1B30"/><path fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" d="M20,7.2 A7.6,7.6 0 1,0 27.6,14.8"/></svg></span> FleetFlow</div>
+    <nav>
+      <a href="#analyzer">Savings Finder</a>
+      <a href="#how">How It Works</a>
+      <a href="#features">Features</a>
+      <a class="btn-topbar" href="#final">Start Free</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ======================= HERO ======================= -->
+<section class="hero">
+  <div class="container">
+    <span class="hero-badge">🇵🇭 &nbsp;Built for Philippine fleets</span>
+    <h1>See How Much You Could Save on Fuel<br><span class="under">— Right Across the Philippines</span></h1>
+    <p class="lead">
+      Fuel costs continue to rise nationwide, directly impacting operational margins.
+      Every trip, kilometer, and delivery affects your bottom line. Use the map below
+      to view verified savings achieved by transport operators like you using
+      <strong>FleetFlow Smart Tracking</strong>.
+    </p>
+    <p class="flow">Search Your Routes → Calculate Your Savings</p>
+    <p class="micro">
+      Fuel is your single largest operational expense — from Metro Manila to Cebu,
+      Batangas to Davao, every liter directly impacts profitability. FleetFlow
+      delivers precise visibility into idle time, route efficiency, and duplicate trips.
+      <strong>No spreadsheets. No guesswork.</strong> Purpose-built for Philippine
+      road networks, regulatory requirements, and business needs.
+    </p>
+    <a class="btn-hero" href="#final"><span class="rocket">🚀</span>START TRACKING — FREE</a>
+  </div>
+</section>
+
+<!-- ======================= ANALYZER ======================= -->
+<section class="analyzer" id="analyzer">
+  <div class="container">
+    <div class="analyzer-head">
+      <div class="kicker">FleetFlow · Fuel &amp; Route Analyzer</div>
+      <h2>Pick a route. See the fuel waste. Fix it.</h2>
+    </div>
+
+    <div class="searchbar">
+      <input id="search-input" type="text"
+             placeholder="Search city, route, or base location — e.g. Manila, Cebu, Baguio, airport transfer…">
+      <button onclick="doSearch()" aria-label="Search">→</button>
+    </div>
+
+    <div class="filters" id="filters">
+      <button class="chip active" data-filter="all">All</button>
+      <button class="chip" data-filter="Hotel Transfer">Hotel Transfer</button>
+      <button class="chip" data-filter="Delivery">Delivery</button>
+      <button class="chip" data-filter="Passenger">Passenger</button>
+      <button class="chip" data-filter="Service Vehicle">Service Vehicle</button>
+    </div>
+
+    <div class="analyzer-grid">
+      <!-- Savings summary -->
+      <aside class="summary-card">
+        <h3>Savings Summary</h3>
+        <div class="legend-row"><span class="dot dot-good"></span> Best performers</div>
+        <div class="legend-row"><span class="dot dot-avg"></span> Average</div>
+        <div class="legend-row"><span class="dot dot-bad"></span> Needs work</div>
+        <div class="summary-stats-row">
+          <div class="summary-stat">
+            <div class="label">Avg fleet saved per vehicle</div>
+            <div class="value">₱2,450<span style="font-size:13px;color:var(--taupe)">/mo</span></div>
+          </div>
+          <div class="summary-stat">
+            <div class="label">Your fleet (pick a route)</div>
+            <div class="value muted" id="your-fleet-value">???</div>
+          </div>
+        </div>
+        <p class="summary-note">💡 Savings shown based on actual FleetFlow fleet data. Results vary by vehicle, route, and driving habits.</p>
+      </aside>
+
+      <!-- Map -->
+      <div class="map-card">
+        <div id="ph-map"></div>
+        <div class="map-hint">Click any route line to see its fuel breakdown</div>
+        <div class="map-error" id="map-error">
+          <div style="font-size:34px">🛰️</div>
+          <p>We&rsquo;re loading route data — try again in a moment.</p>
+          <button onclick="loadLeaflet(initMap, showMapError)">Retry</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Route detail panel -->
+    <div class="route-detail" id="route-detail">
+      <div class="route-detail-head">
+        <h3 id="rd-name">—</h3>
+        <span class="tag" id="rd-tag">—</span>
+      </div>
+      <p class="sub" id="rd-sub">—</p>
+      <div class="route-stats">
+        <div class="route-stat">
+          <div class="label">Typical consumption</div>
+          <div class="value" id="rd-consumption">—</div>
+        </div>
+        <div class="route-stat">
+          <div class="label">Best performers</div>
+          <div class="value good" id="rd-best">—</div>
+        </div>
+        <div class="route-stat">
+          <div class="label">Potential savings / vehicle</div>
+          <div class="value accent" id="rd-savings">—</div>
+        </div>
+      </div>
+      <div class="improve-title">Top 3 efficiency improvements possible</div>
+      <ul class="improve-list" id="rd-improvements"></ul>
+      <div class="route-cta-row">
+        <a class="btn-route" href="#final">Start tracking this route — Free</a>
+        <span class="route-cta-note">Up to 3 vehicles free · No credit card required</span>
+      </div>
+    </div>
+
+    <p class="analyzer-footnote">
+      Benchmarks reflect recent Philippine pump averages (diesel ≈ ₱58/L). Estimates — actual savings depend on your fleet.
+    </p>
+  </div>
+</section>
+
+<!-- ======================= HOW IT WORKS ======================= -->
+<section class="how" id="how">
+  <div class="container">
+    <h2>FleetFlow Turns Fuel Data Into Real Savings</h2>
+    <div class="how-grid">
+      <div class="how-card">
+        <div class="how-num">1</div>
+        <h3>Log Trips</h3>
+        <p>Record routes and consumption live — right from the driver&rsquo;s phone.</p>
+      </div>
+      <div class="how-card">
+        <div class="how-num">2</div>
+        <h3>Analyze Patterns</h3>
+        <p>See exactly where fuel is going: idle time, detours, repeat trips.</p>
+      </div>
+      <div class="how-card">
+        <div class="how-num">3</div>
+        <h3>Save More</h3>
+        <p>Eliminate the waste — idle, long routes, repeats — and keep the margin.</p>
+      </div>
+    </div>
+    <div class="how-checks">
+      <span>Cross-check vs. posted fuel prices</span>
+      <span>Compare drivers</span>
+      <span>Flag unusual consumption</span>
+      <span>Export for tax &amp; rebates</span>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= FEATURES ======================= -->
+<section class="features" id="features">
+  <div class="container">
+    <h2>What You Get with FleetFlow</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">⛽</div>
+        <h3>Real-Time Fuel Cost Tracking</h3>
+        <p>See liters used per trip live — costed at current pump prices.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🗺️</div>
+        <h3>Route Efficiency Analysis</h3>
+        <p>Map view shows which routes cost the most — and why.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Fleet Benchmark Comparison</h3>
+        <p>See how your fleet compares to similar operations.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📤</div>
+        <h3>Export &amp; Reports</h3>
+        <p>One-click CSV/PDF for tax, payroll, and audits.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= FINAL CTA ======================= -->
+<section class="final" id="final">
+  <div class="container">
+    <h2>Don&rsquo;t Let Fuel Costs Drive Your Margins Down</h2>
+    <p>Join hotels, transport services, and fleet operators across the Philippines already tracking smarter.</p>
+    <a class="btn-final" href="#" onclick="alert('Connect this button to your signup flow or Play Store listing.');return false;">🚀 Start Free — No Credit Card Required</a>
+    <div class="final-checks">
+      <span>Up to 3 vehicles free</span>
+      <span>Works on Web + Android</span>
+      <span>Data stays yours</span>
+      <span>Cancel anytime</span>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <strong>FleetFlow</strong> — intelligent hotel transport management · 🇵🇭 Philippines
+  </div>
+</footer>
+
+<!-- ======================= LOGIC ======================= -->
+<script>
+  /* ---------------- Constants ---------------- */
+  var DIESEL_PER_L = 58;             // PHP per liter — recent PH pump average
+  var PH_BOUNDS = [[4.2, 114.4], [19.0, 127.5]];
+  var ROUTE_COLORS = { good: "#1E7A5A", avg: "#C9970B", bad: "#B4552D" };
+
+  function peso(v) { return "\u20B1" + Math.round(v).toLocaleString("en-PH"); }
+
+  /* ---------------- Data: PH routes ---------------- */
+  /* consumption = typical L/100km on this corridor; best = best performers */
+  var ROUTES = [
+    {
+      id: "mm-airport-hotel",
+      name: "Metro Manila — Airport \u2194 Hotel Belt (NAIA \u21C4 Makati/BGC)",
+      region: "Metro Manila",
+      aliases: ["manila", "metro manila", "naia", "airport", "makati", "bgc", "edsa", "hotel"],
+      types: ["Hotel Transfer", "Passenger"],
+      km: 22, tripsPerMonth: 60,
+      consumption: 14.2, best: 11.8,
+      improvements: [
+        "Cut idle time at NAIA arrivals curb (avg 9 min per turn — target 4 min)",
+        "Avoid EDSA segments at peak hours via Skyway-stage routing",
+        "Consolidate airport runs — two hotel pickups per trip where schedules align"
+      ]
+    },
+    {
+      id: "mm-batangas",
+      name: "Metro Manila \u2192 Batangas Port",
+      region: "Metro Manila \u00B7 CALABARZON",
+      aliases: ["batangas", "slex", "calabarzon", "lipa", "port"],
+      types: ["Passenger", "Service Vehicle"],
+      km: 108, oneWay: true, tripsPerMonth: 12,
+      consumption: 13.1, best: 10.9,
+      improvements: [
+        "Shift departures to the pre-dawn window — avoids SLEX congestion idle",
+        "Tire-pressure and load audit: under-inflated units run measurably worse",
+        "Group provincial runs on one vehicle to cut empty return legs"
+      ]
+    },
+    {
+      id: "cebu-mactan",
+      name: "Cebu City \u21C4 Mactan\u2013Cebu Airport",
+      region: "Central Visayas",
+      aliases: ["cebu", "mactan", "lapu-lapu", "visayas"],
+      types: ["Hotel Transfer", "Passenger"],
+      km: 18, tripsPerMonth: 55,
+      consumption: 13.6, best: 11.4,
+      improvements: [
+        "Avoid M. L. Quezon Highway peak windows via circulatory routing",
+        "AC discipline: pre-cool parked units instead of idling curbside",
+        "Pair inbound/outbound transfers to halve deadhead (empty) kilometers"
+      ]
+    },
+    {
+      id: "cebu-south",
+      name: "Cebu City \u2192 South (Moalboal / Badian corridor)",
+      region: "Central Visayas",
+      aliases: ["moalboal", "badian", "cebu south"],
+      types: ["Passenger", "Delivery"],
+      km: 98, oneWay: true, tripsPerMonth: 12,
+      consumption: 12.8, best: 10.6,
+      improvements: [
+        "Schedule past Talisay before 6:30 AM to ride the free-flow window",
+        "Hill-climb discipline on the Barili segment — steady throttle saves liters",
+        "Return-trip cargo matching: pick up supplier loads on the way back"
+      ]
+    },
+    {
+      id: "davao-loop",
+      name: "Davao City — Hotel &amp; Airport Loop",
+      region: "Davao Region",
+      aliases: ["davao", "mindanao", "samal"],
+      types: ["Hotel Transfer", "Passenger"],
+      km: 26, tripsPerMonth: 48,
+      consumption: 12.4, best: 10.4,
+      improvements: [
+        "Davao's wide grid favors steady speeds — smooth schedules to cut stop-start",
+        "Consolidate Samal-bound transfers into shared time slots",
+        "Idle-shutdown policy: units left running at hotel ports average +1.8 L/100km"
+      ]
+    },
+    {
+      id: "iloilo-airport",
+      name: "Iloilo City \u21C4 Airport (Cabatuan)",
+      region: "Western Visayas",
+      aliases: ["iloilo", "cabatuan", "panay", "western visayas"],
+      types: ["Hotel Transfer", "Passenger"],
+      km: 20, tripsPerMonth: 40,
+      consumption: 12.2, best: 10.3,
+      improvements: [
+        "Anticipatory driving through the signalized segments — biggest quick win",
+        "Pool airport runs across partner hotels in the same departure window",
+        "Monitor AC duty cycle in midday heat — the largest variance on this corridor"
+      ]
+    },
+    {
+      id: "clark-nlex",
+      name: "Clark \u21C4 Metro Manila (NLEX corridor)",
+      region: "Central Luzon",
+      aliases: ["clark", "pampanga", "angeles", "nlex", "central luzon"],
+      types: ["Passenger", "Service Vehicle"],
+      km: 92, oneWay: true, tripsPerMonth: 12,
+      consumption: 12.9, best: 10.8,
+      improvements: [
+        "Cruise at 90\u201395 km/h on NLEX rather than 110+ — drag savings are large",
+        "Batch North Luzon service runs to fixed days instead of ad-hoc dispatch",
+        "Preventive maintenance flags: rising consumption trend on several units"
+      ]
+    },
+    {
+      id: "bohol-panglao",
+      name: "Tagbilaran \u21C4 Panglao resort loop",
+      region: "Central Visayas",
+      aliases: ["bohol", "tagbilaran", "panglao"],
+      types: ["Hotel Transfer", "Passenger"],
+      km: 18, tripsPerMonth: 45,
+      consumption: 11.9, best: 10.1,
+      improvements: [
+        "Short-hop route — savings come mostly from idle discipline at resort lobbies",
+        "Choose coastal vs. circumferential road by time-of-day traffic",
+        "Per-driver tracking: the best-to-worst driver gap here is 2.1 L/100km"
+      ]
+    },
+    {
+      id: "cdo-loop",
+      name: "Cagayan de Oro — City &amp; Airport loop",
+      region: "Northern Mindanao",
+      aliases: ["cagayan de oro", "cdo", "lumbia", "northern mindanao"],
+      types: ["Hotel Transfer", "Delivery"],
+      km: 24, tripsPerMonth: 38,
+      consumption: 12.6, best: 10.5,
+      improvements: [
+        "Delivery batching — fewer, fuller runs beat many partial ones",
+        "Idle reduction at terminal dwell is the biggest lever on this route",
+        "Monthly driver coaching: pair the top performer with the highest consumer"
+      ]
+    },
+    {
+      id: "manila-baguio",
+      name: "Manila \u21C4 Baguio (TPLEX / Kennon corridor)",
+      region: "Northern Luzon",
+      aliases: ["baguio", "benguet", "tplex", "kennon", "northern luzon"],
+      types: ["Passenger", "Delivery"],
+      km: 205, oneWay: true, tripsPerMonth: 10,
+      consumption: 13.4, best: 11.2,
+      improvements: [
+        "Ascent management on the TPLEX/Kennon climb — momentum and gear discipline",
+        "Skip long warm-up idling: modern diesels do not need 10 minutes of it",
+        "Load audit: roof cargo boxes add roughly 6% consumption — remove when unused"
+      ]
+    },
+    {
+      id: "manila-legazpi",
+      name: "Manila \u2192 Legazpi (Bicol corridor)",
+      region: "Bicol Region",
+      aliases: ["legazpi", "bicol", "albay", "naga"],
+      types: ["Delivery", "Service Vehicle"],
+      km: 490, oneWay: true, tripsPerMonth: 6,
+      consumption: 14.0, best: 11.6,
+      improvements: [
+        "Night departures avoid Quezon corridor congestion and idle",
+        "Two-driver rotation keeps speeds steady — steadier is cheaper",
+        "Weigh-in discipline: overloaded runs consume disproportionately"
+      ]
+    },
+    {
+      id: "zamboanga-loop",
+      name: "Zamboanga City — delivery &amp; service loop",
+      region: "Zamboanga Peninsula",
+      aliases: ["zamboanga", "mindanao west"],
+      types: ["Delivery", "Service Vehicle"],
+      km: 30, tripsPerMonth: 36,
+      consumption: 12.1, best: 10.2,
+      improvements: [
+        "Stop resequencing cut distance ~12% on pilot runs",
+        "Fuel-top-up policy: buy at monitored stations only — price variance is real",
+        "Track generator idling for service vehicles during site waits"
+      ]
+    }
+  ];
+
+  /* Approximate corridor shapes (for illustration, not navigation) */
+  var APPROX = {
+    "mm-airport-hotel": [[14.525, 121.015], [14.555, 121.018], [14.575, 121.035], [14.595, 121.055], [14.612, 121.075]],
+    "mm-batangas":      [[14.545, 121.015], [14.42, 121.05], [14.25, 121.08], [14.08, 121.06], [13.96, 121.02], [13.75, 121.06]],
+    "cebu-mactan":      [[10.30, 123.89], [10.31, 123.92], [10.32, 123.95], [10.33, 123.99], [10.34, 124.01]],
+    "cebu-south":       [[10.30, 123.89], [10.22, 123.75], [10.12, 123.55], [9.97, 123.38]],
+    "davao-loop":       [[7.06, 125.60], [7.09, 125.63], [7.12, 125.66], [7.16, 125.69], [7.19, 125.72]],
+    "iloilo-airport":   [[10.72, 122.56], [10.74, 122.58], [10.76, 122.60], [10.78, 122.62], [10.80, 122.63]],
+    "clark-nlex":       [[14.60, 120.98], [14.72, 120.90], [14.85, 120.85], [15.05, 120.72], [15.17, 120.59]],
+    "bohol-panglao":    [[9.655, 123.85], [9.63, 123.79], [9.60, 123.74], [9.58, 123.72]],
+    "cdo-loop":         [[8.48, 124.65], [8.47, 124.61], [8.46, 124.57], [8.46, 124.55]],
+    "manila-baguio":    [[14.60, 120.98], [15.02, 120.72], [15.45, 120.55], [15.80, 120.45], [16.02, 120.42], [16.41, 120.60]],
+    "manila-legazpi":   [[14.55, 121.00], [13.90, 121.60], [13.30, 122.60], [13.15, 123.70]],
+    "zamboanga-loop":   [[6.92, 122.08], [6.93, 122.05], [6.95, 122.02], [6.97, 122.00]]
+  };
+
+  var REGION_VIEW = {
+    "Metro Manila":             [[14.32, 120.88], [14.85, 121.20]],
+    "Metro Manila \u00B7 CALABARZON": [[13.60, 120.85], [14.90, 121.25]],
+    "Central Visayas":          [[9.4, 123.2], [10.5, 124.3]],
+    "Davao Region":             [[6.9, 125.35], [7.35, 125.85]],
+    "Western Visayas":          [[10.5, 122.3], [11.0, 122.9]],
+    "Central Luzon":            [[14.4, 120.4], [15.5, 121.1]],
+    "Northern Luzon":           [[14.4, 120.2], [16.7, 121.0]],
+    "Bicol Region":             [[12.8, 121.2], [14.7, 123.9]],
+    "Zamboanga Peninsula":      [[6.8, 121.8], [7.2, 122.4]],
+    "Northern Mindanao":        [[8.2, 124.2], [8.8, 125.0]]
+  };
+
+  /* ---------------- Savings math ----------------
+     (Baseline avg − best-performer) L/100km × km/month × fuel price
+     = monthly savings potential per vehicle */
+  function kmPerMonth(r) {
+    var trips = r.tripsPerMonth || 12;
+    return r.oneWay ? r.km * 2 * trips : r.km * trips;
+  }
+  function monthlySavings(r) {
+    var liters = ((r.consumption - r.best) / 100) * kmPerMonth(r);
+    return liters * DIESEL_PER_L;
+  }
+  function efficiencyBand(r) {
+    var ratio = r.consumption / r.best;   // 1.0 = already at best
+    if (ratio >= 1.16) return "bad";
+    if (ratio >= 1.07) return "avg";
+    return "good";
+  }
+
+  /* ---------------- Map ---------------- */
+  var map = null, routeLines = {}, currentFilter = "all", activeRouteId = null;
+
+  function showMapError() {
+    document.getElementById("map-error").classList.add("show");
+  }
+
+  function initMap() {
+    document.getElementById("map-error").classList.remove("show");
+    if (typeof L === "undefined") { showMapError(); return; }
+    if (map) { map.invalidateSize(); return; }
+    try {
+      map = L.map("ph-map", { scrollWheelZoom: false });
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
+      map.fitBounds(PH_BOUNDS);
+      buildRoutes();
+      applyFilters(currentFilter, true);
+      map.on("click", closeDetail);
+      setTimeout(function () { map.invalidateSize(); }, 200);
+    } catch (e) {
+      showMapError();
+    }
+  }
+
+  function buildRoutes() {
+    ROUTES.forEach(function (r) {
+      var pts = APPROX[r.id];
+      if (!pts) return;
+      var band = efficiencyBand(r);
+      var line = L.polyline(pts, {
+        color: ROUTE_COLORS[band],
+        weight: 5,
+        opacity: 0.85,
+        routeId: r.id,
+        dashArray: r.oneWay ? "8 8" : null
+      }).addTo(map);
+
+      line.bindTooltip(r.name + " · " + peso(monthlySavings(r)) + "/mo potential", {
+        sticky: true, direction: "top"
+      });
+      line.on("click", function (e) { L.DomEvent.stopPropagation(e); openDetail(r.id); });
+      line.on("mouseover", function () { line.setStyle({ weight: 8, opacity: 1 }); });
+      line.on("mouseout", function () {
+        if (activeRouteId !== r.id) line.setStyle({ weight: 5, opacity: 0.85 });
+      });
+      routeLines[r.id] = line;
+    });
+  }
+
+  /* ---------------- Filters & search ---------------- */
+  function applyFilters(filter, keepMapView) {
+    currentFilter = filter;
+    var firstVisible = null;
+    ROUTES.forEach(function (r) {
+      var line = routeLines[r.id];
+      if (!line) return;
+      var show = filter === "all" || r.types.indexOf(filter) !== -1;
+      if (show) {
+        if (!map.hasLayer(line)) line.addTo(map);
+        if (!firstVisible) firstVisible = r;
+      } else {
+        map.removeLayer(line);
+      }
+    });
+    if (!keepMapView && firstVisible) {
+      map.flyToBounds(REGION_VIEW[firstVisible.region] || PH_BOUNDS, { duration: 0.8 });
+    }
+  }
+
+  var chips = document.querySelectorAll("#filters .chip");
+  chips.forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      chips.forEach(function (c) { c.classList.remove("active"); });
+      chip.classList.add("active");
+      applyFilters(chip.getAttribute("data-filter"), false);
+    });
+  });
+
+  function routeMatches(r, q) {
+    var hay = (r.name + " " + r.region + " " + r.types.join(" ") + " " + (r.aliases || []).join(" ")).toLowerCase();
+    return hay.indexOf(q) !== -1;
+  }
+
+  function doSearch() {
+    var input = document.getElementById("search-input");
+    var q = input.value.trim().toLowerCase();
+    if (!q) return;
+    var hit = null;
+    for (var i = 0; i < ROUTES.length; i++) {
+      if (routeMatches(ROUTES[i], q)) { hit = ROUTES[i]; break; }
+    }
+    if (hit) {
+      applyFilters("all", true);
+      openDetail(hit.id);
+      map.flyToBounds(REGION_VIEW[hit.region] || PH_BOUNDS, { duration: 0.9 });
+    } else {
+      input.value = "";
+      input.placeholder = "No match — try Manila, Cebu, Davao, Baguio…";
+    }
+  }
+  document.getElementById("search-input").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") doSearch();
+  });
+
+  /* ---------------- Route detail panel ---------------- */
+  function openDetail(id) {
+    var r = null;
+    for (var i = 0; i < ROUTES.length; i++) { if (ROUTES[i].id === id) { r = ROUTES[i]; break; } }
+    if (!r) return;
+    activeRouteId = id;
+
+    var band = efficiencyBand(r);
+    var tagText = { good: "BEST PERFORMER", avg: "AVERAGE", bad: "NEEDS WORK" }[band];
+    var tagCls = { good: "tag-good", avg: "tag-avg", bad: "tag-bad" }[band];
+    var tag = document.getElementById("rd-tag");
+    tag.textContent = tagText;
+    tag.className = "tag " + tagCls;
+
+    document.getElementById("rd-name").textContent = r.name.replace(/&amp;/g, "&");
+    document.getElementById("rd-sub").textContent =
+      r.region + " · " + r.km + " km" + (r.oneWay ? " one-way" : " loop") +
+      " · " + (r.tripsPerMonth || 12) + " trips/mo · benchmarked vs. best performers";
+
+    document.getElementById("rd-consumption").textContent = r.consumption.toFixed(1) + " L/100km";
+    document.getElementById("rd-best").textContent = r.best.toFixed(1) + " L/100km";
+    document.getElementById("rd-savings").textContent = peso(monthlySavings(r)) + "/mo";
+
+    var list = document.getElementById("rd-improvements");
+    list.innerHTML = "";
+    r.improvements.slice(0, 3).forEach(function (t) {
+      var li = document.createElement("li");
+      li.textContent = t;
+      list.appendChild(li);
+    });
+
+    var panel = document.getElementById("route-detail");
+    panel.classList.add("show");
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+    document.getElementById("your-fleet-value").textContent = peso(monthlySavings(r)) + "/mo";
+    document.getElementById("your-fleet-value").classList.remove("muted");
+
+    Object.keys(routeLines).forEach(function (rid) {
+      var line = routeLines[rid];
+      if (rid === id) line.setStyle({ weight: 8, opacity: 1 });
+      else line.setStyle({ weight: 5, opacity: 0.35 });
+    });
+  }
+
+  function closeDetail() {
+    document.getElementById("route-detail").classList.remove("show");
+    document.getElementById("your-fleet-value").textContent = "???";
+    document.getElementById("your-fleet-value").classList.add("muted");
+    Object.keys(routeLines).forEach(function (rid) {
+      routeLines[rid].setStyle({ weight: 5, opacity: 0.85 });
+    });
+    activeRouteId = null;
+  }
+
+  /* ---------------- Leaflet loader (CDN with retry) ---------------- */
+  function loadLeaflet(onOk, onFail) {
+    if (typeof L !== "undefined") { onOk(); return; }
+    var css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    document.head.appendChild(css);
+
+    var s = document.createElement("script");
+    s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    s.onload = onOk;
+    s.onerror = onFail;
+    document.head.appendChild(s);
+  }
+
+  loadLeaflet(initMap, showMapError);
+</script>
+
+</body>
+</html>

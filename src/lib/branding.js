@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 const KEY = "fleetflow:branding";
 
 export const DEFAULT_BRANDING = {
-  name: "TransportLog",
+  name: "FleetFlow",
   logo: "",
   logoSize: 36,
   font: "Poppins",

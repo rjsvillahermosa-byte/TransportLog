@@ -215,7 +215,7 @@ function BrandingCard() {
   const reset = () => {
     resetBranding();
     setDraft({ ...DEFAULT_BRANDING });
-    toast({ title: "Branding reset", description: "Back to the default TransportLog look." });
+    toast({ title: "Branding reset", description: "Back to the default FleetFlow look." });
   };
 
   return (
@@ -304,7 +304,7 @@ function BrandingCard() {
             <Input
               value={draft.name}
               onChange={(e) => apply({ ...draft, name: e.target.value })}
-              placeholder="TransportLog"
+              placeholder="FleetFlow"
               className="h-9 mt-1"
             />
           </div>
@@ -549,7 +549,7 @@ export default function Settings({ user }) {
   const resetBrandTheme = () => {
     setTheme({ ...DEFAULT_THEME });
     resetTheme();
-    toast({ title: "Theme reset", description: "Back to the default deep-teal TransportLog palette." });
+    toast({ title: "Theme reset", description: "Back to the default deep-navy FleetFlow palette." });
   };
   const [users, setUsers] = useState([]);
   const [userModal, setUserModal] = useState(null); // {initial?}

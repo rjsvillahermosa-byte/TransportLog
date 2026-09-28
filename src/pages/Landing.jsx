@@ -2,14 +2,18 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import LiveBackground from "../components/LiveBackground";
 import {
+  AlertTriangle,
   ArrowRight,
   BellRing,
   CalendarClock,
   Camera,
   Check,
   ClipboardList,
+  Droplet,
   Droplets,
+  Gauge,
   Mic,
+  MinusCircle,
   Palette,
   Printer,
   QrCode,
@@ -89,6 +93,31 @@ const ALSO = [
   { icon: Users, text: "Role-based access for every team member" },
 ];
 
+// Verbatim fuel-audit vocabulary from the product's fraud detection
+// (Fuel page + fuel expense report). Named flags, not marketing inventions.
+const FRAUD_FLAGS = [
+  {
+    icon: Droplet,
+    flag: "Ghost fill",
+    body: "More liters than the tank holds — the receipt doesn't match the vehicle.",
+  },
+  {
+    icon: AlertTriangle,
+    flag: "Abnormal thirst",
+    body: "Underfilled receipt, siphoning, or a leak — consumption suddenly spikes.",
+  },
+  {
+    icon: Gauge,
+    flag: "Impossible efficiency",
+    body: "Inflated liters or odometer mismatch — the numbers can't all be true.",
+  },
+  {
+    icon: MinusCircle,
+    flag: "Odometer did not advance",
+    body: "Since the last fill — fuel consumed goes unexplained.",
+  },
+];
+
 function ProductPreview() {
   return (
     <div className="relative mx-auto w-full max-w-sm" aria-hidden="true">
@@ -155,6 +184,7 @@ export default function Landing() {
           <nav className="hidden items-center gap-7 text-sm font-medium text-mocha md:flex">
             <a href="#features" className="hover:text-brand">Features</a>
             <a href="#how" className="hover:text-brand">How it works</a>
+            <a href="#fraud" className="hover:text-brand">Fuel integrity</a>
             <a href="#roles" className="hover:text-brand">Roles</a>
           </nav>
           <div className="flex items-center gap-2">
@@ -240,6 +270,34 @@ export default function Landing() {
               </li>
             ))}
           </ol>
+        </section>
+
+        {/* Fuel integrity — the audit's named flags */}
+        <section id="fraud" className="scroll-mt-20 bg-white/60 py-20">
+          <div className="mx-auto max-w-6xl px-4">
+            <div className="mx-auto max-w-2xl text-center">
+              <h2 className="font-heading text-3xl font-bold text-cocoa">The photo doesn't lie</h2>
+              <p className="mt-3 text-mocha">
+                Fuel numbers are only as honest as their source. Every fill-up is cross-checked
+                against the odometer and the tank itself — and the audit flags what doesn't add up:
+              </p>
+            </div>
+            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {FRAUD_FLAGS.map(({ icon: Icon, flag, body }) => (
+                <div key={flag} className="rounded-3xl bg-white p-5 shadow-card">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-accent/20">
+                    <Icon className="h-5 w-5 text-accent-dark" />
+                  </div>
+                  <h3 className="font-heading text-base font-bold text-cocoa">{flag}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-mocha">{body}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-taupe">
+              The company fuel expense summary runs a full-to-full audit with these flags — and every
+              flagged fill keeps its receipt photo on file.
+            </p>
+          </div>
         </section>
 
         {/* Roles */}

@@ -136,12 +136,19 @@ const supabaseAuth = {
     if (error) throw new Error(error.message);
     return true; // OAuth redirects — session lands after the round-trip
   },
-  async register({ full_name, email, password }) {
+  async register({ full_name, email, password, client_code }) {
     const sb = getSupabaseClient();
     const { data, error } = await sb.auth.signUp({
       email,
       password,
-      options: { data: { full_name } },
+      options: {
+        data: {
+          full_name,
+          // Client Code → handle_new_saas_user trigger links membership +
+          // provisions the org. Omitted/empty for legacy no-code signups.
+          ...(client_code ? { client_code } : {}),
+        },
+      },
     });
     if (error) throw new Error(error.message);
     // profile auto-created by the on_auth_user_created trigger (Staff)

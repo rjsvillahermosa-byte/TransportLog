@@ -6,10 +6,10 @@
 
 const STORAGE_KEY = "fleetflow:theme";
 
-export const DEFAULT_THEME = { primary: "#1E7A5A", accent: "#F2B705" };
+export const DEFAULT_THEME = { primary: "#1A2B48", accent: "#FF6B2C" };
 
 export const THEME_PRESETS = [
-  { name: "Deep Teal", primary: "#1E7A5A", accent: "#F2B705" },
+  { name: "FleetFlow Navy", primary: "#1A2B48", accent: "#FF6B2C" },
   { name: "Hotel Blue", primary: "#1D4ED8", accent: "#F59E0B" },
   { name: "Ocean", primary: "#0E7490", accent: "#FB923C" },
   { name: "Burgundy", primary: "#8E2A3C", accent: "#D9A441" },

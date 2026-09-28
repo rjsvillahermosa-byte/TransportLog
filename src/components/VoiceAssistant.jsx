@@ -25,7 +25,7 @@ export default function VoiceAssistant({ user }) {
   const [thinking, setThinking] = useState(false);
   const [typed, setTyped] = useState("");
   const [log, setLog] = useState([
-    { who: "ai", text: "TransportLog voice at your service. Tap the mic or type a command — try 'help'." },
+    { who: "ai", text: "FleetFlow voice at your service. Tap the mic or type a command — try 'help'." },
   ]);
   const recRef = useRef(null);
   const logRef = useRef(null);
@@ -228,7 +228,7 @@ export default function VoiceAssistant({ user }) {
           open ? "bg-cocoa text-white" : "bg-brand text-white hover:bg-brand-dark",
           listening && "animate-pulse ring-4 ring-accent/50"
         )}
-        title="TransportLog voice"
+        title="FleetFlow voice"
       >
         {listening ? <Mic className="w-5 h-5" /> : open ? <X className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
       </button>

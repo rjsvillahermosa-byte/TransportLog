@@ -27,8 +27,8 @@ export function AuthLayout({ icon: Icon = Car, title, subtitle, footer, children
           {brand.logo ? (
             <img src={brand.logo} alt="Logo" className="w-14 h-14 rounded-3xl object-cover border border-sand mb-3 shadow-card" />
           ) : (
-            <div className="w-14 h-14 rounded-3xl bg-mint flex items-center justify-center mb-3 shadow-card">
-              <Icon className="w-7 h-7 text-brand" />
+            <div className="w-14 h-14 rounded-3xl bg-brand flex items-center justify-center mb-3 shadow-card">
+              <Icon className="w-7 h-7 text-white" />
             </div>
           )}
           <h1 className="text-2xl font-heading font-bold text-cocoa">{title}</h1>

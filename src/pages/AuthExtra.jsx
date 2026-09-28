@@ -6,12 +6,40 @@ import { auth } from "../lib/db";
 import { AuthLayout } from "./Auth";
 
 export function RegisterPage() {
-  const [form, setForm] = useState({ full_name: "", email: "", password: "" });
+  const [form, setForm] = useState({ full_name: "", email: "", password: "", client_code: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [codeChecking, setCodeChecking] = useState(false);
+  const [codeStatus, setCodeStatus] = useState(null); // {ok, name} | {ok:false}
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  // Pre-flight client-code validation: fails fast with a clear message instead
+  // of a generic Supabase signup error after the fact.
+  const checkClientCode = async (code) => {
+    const c = code.trim().toUpperCase();
+    if (!c) { setCodeStatus(null); return; }
+    setCodeChecking(true);
+    try {
+      const { getSupabaseClient } = await import("../lib/supabaseClient");
+      const sb = getSupabaseClient();
+      const { data, error } = await sb
+        .from("organizations")
+        .select("client_code, name, plan_status")
+        .eq("client_code", c)
+        .maybeSingle();
+      if (error || !data || data.plan_status !== "active") {
+        setCodeStatus({ ok: false });
+      } else {
+        setCodeStatus({ ok: true, name: data.name });
+      }
+    } catch {
+      setCodeStatus({ ok: false });
+    } finally {
+      setCodeChecking(false);
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -22,7 +50,7 @@ export function RegisterPage() {
     }
     setLoading(true);
     try {
-      const result = await auth.register(form);
+      const result = await auth.register({ ...form, client_code: form.client_code.trim().toUpperCase() });
       if (result?.needsEmailConfirmation) {
         setNeedsConfirmation(true);
       } else {
@@ -72,6 +100,32 @@ export function RegisterPage() {
     >
       <form onSubmit={submit} className="space-y-4">
         <div className="space-y-2">
+          <Label>Client code</Label>
+          <Input
+            required
+            value={form.client_code}
+            onChange={(e) => {
+              set("client_code")(e);
+              setCodeStatus(null);
+            }}
+            onBlur={(e) => checkClientCode(e.target.value)}
+            placeholder="GRAND-PLAZA"
+            className="uppercase"
+            style={{ textTransform: "uppercase" }}
+          />
+          {codeChecking && <p className="text-xs text-taupe">Checking code…</p>}
+          {codeStatus?.ok && (
+            <p className="text-xs text-brand">
+              ✓ {codeStatus.name} — your account will join this fleet
+            </p>
+          )}
+          {codeStatus && !codeStatus.ok && !codeChecking && (
+            <p className="text-xs text-red-600">
+              Unknown client code — check with your fleet administrator.
+            </p>
+          )}
+        </div>
+        <div className="space-y-2">
           <Label>Full name</Label>
           <Input required value={form.full_name} onChange={set("full_name")} placeholder="John Smith" />
         </div>
@@ -90,7 +144,8 @@ export function RegisterPage() {
           {loading ? "Creating account…" : "Create Account"}
         </Button>
         <p className="text-xs text-taupe text-center">
-          New accounts start as Staff — an admin can promote you from Settings.
+          The first account on a client code becomes its Super Admin — later
+          accounts start as Staff.
         </p>
       </form>
     </AuthLayout>
