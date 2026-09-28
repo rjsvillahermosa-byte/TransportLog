@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { auth, drainQueue, useOnline, usePendingCount, onDataChange } from "../lib/db";
-import { Button } from "./ui";
 import VoiceAssistant from "./VoiceAssistant";
 import { useBranding } from "../lib/branding";
 
@@ -232,9 +231,9 @@ export default function Layout({ user, children }) {
         {/* guaranteed clearance below the phone status bar, even when the
             device reports no safe-area inset */}
         <header
-          className="bg-cream/85 backdrop-blur border-b border-sand sticky top-0 z-50 print:hidden pt-[max(1.75rem,env(safe-area-inset-top))]"
+          className="border-b border-sand/60 bg-cream/85 backdrop-blur sticky top-0 z-50 print:hidden pt-[max(1.75rem,env(safe-area-inset-top))]"
         >
-          <div ref={headerInnerRef} className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
+          <div ref={headerInnerRef} className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
             {/* hidden measuring strip — zero-footprint wrapper so it never
                 expands the page on mobile (the pinch-zoom bug) */}
             <div className="w-0 h-0 overflow-hidden" aria-hidden="true">
@@ -246,7 +245,7 @@ export default function Layout({ user, children }) {
                   <span
                     key={item.path}
                     data-navkey={item.path}
-                    className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg h-8 px-3 text-xs font-bold uppercase tracking-wide"
+                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium"
                   >
                     <item.icon className="w-4 h-4" />
                     {item.label}
@@ -268,7 +267,7 @@ export default function Layout({ user, children }) {
                   <Car className="w-5 h-5 text-white" />
                 </div>
               )}
-              <span className="font-heading font-extrabold text-base sm:text-lg tracking-wider uppercase text-cocoa truncate max-w-[170px] xl:max-w-[240px]">
+              <span className="font-heading text-lg font-bold text-cocoa truncate max-w-[170px] xl:max-w-[240px]">
                 {!brand.logo && brand.name === "FleetFlow" ? (
                   <>
                     Fleet<span className="text-brand">Flow</span>
@@ -279,34 +278,40 @@ export default function Layout({ user, children }) {
               </span>
             </div>
 
-            <nav className="hidden lg:flex items-center gap-0.5 flex-1 min-w-0 justify-end">
+            <nav className="hidden lg:flex items-center gap-1 flex-1 min-w-0 justify-end">
               {/* overflow must stay visible — the More dropdown renders here */}
               {visibleNav.map((item) => {
                 const active = location.pathname === item.path;
                 return (
-                  <Link to={item.path} key={item.path}>
-                    <Button
-                      variant={active ? "default" : "ghost"}
-                      size="sm"
-                      className="gap-1"
-                    >
-                      <item.icon className="w-4 h-4" />
-                      {item.label}
-                    </Button>
+                  <Link
+                    to={item.path}
+                    key={item.path}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                      active
+                        ? "bg-mint/50 text-brand font-semibold"
+                        : "text-mocha hover:text-brand hover:bg-mint/25"
+                    )}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
                   </Link>
                 );
               })}
               {overflowNav.length > 0 && (
                 <div className="relative" ref={moreWrapRef}>
-                  <Button
-                    variant={overflowNav.some((i) => i.path === location.pathname) ? "default" : "ghost"}
-                    size="sm"
-                    className="gap-1"
+                  <button
+                    className={cn(
+                      "inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                      overflowNav.some((i) => i.path === location.pathname)
+                        ? "bg-mint/50 text-brand font-semibold"
+                        : "text-mocha hover:text-brand hover:bg-mint/25"
+                    )}
                     onClick={() => setMoreOpen((v) => !v)}
                   >
                     More
                     <ChevronDown className="w-3.5 h-3.5" />
-                  </Button>
+                  </button>
                   {moreOpen &&
                     createPortal(
                       <>
@@ -395,7 +400,7 @@ export default function Layout({ user, children }) {
                         to={item.path}
                         className={cn(
                           "flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium",
-                          active ? "bg-brand text-white" : "text-mocha hover:bg-mint/60"
+                          active ? "bg-mint/60 text-brand font-semibold" : "text-mocha hover:bg-mint/40"
                         )}
                       >
                         <item.icon className="w-4 h-4" />

@@ -13,14 +13,14 @@ export const DEFAULT_BRANDING = {
   name: "FleetFlow",
   logo: "",
   logoSize: 36,
-  font: "Poppins",
+  font: "Inter", // the landing page's typeface — the app must match it
   size: 16,
   background: { id: "cream", color: "#FAF3E7" },
 };
 
 export const FONT_OPTIONS = [
-  { value: "Poppins", label: "Poppins — rounded, friendly", rec: 16, recommended: true },
   { value: "Inter", label: "Inter — clean, corporate", rec: 16, recommended: true },
+  { value: "Poppins", label: "Poppins — rounded, friendly", rec: 16 },
   { value: "Montserrat", label: "Montserrat — wide, premium", rec: 15.5 },
   { value: "DM Sans", label: "DM Sans — modern, neutral", rec: 16 },
   { value: "Playfair Display", label: "Playfair Display — classic hotel serif", rec: 17 },
