@@ -32,6 +32,7 @@ const SB_TABLES = {
   ServiceLog: "service_logs",
   FuelLog: "fuel_logs",
   IncidentLog: "incidents",
+  SavedReport: "saved_reports",
   User: "profiles",
 };
 
@@ -469,7 +470,19 @@ export const integrations = {
       if (supabaseActive()) {
         const sb = getSupabaseClient();
         const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-        const path = `uploads/${uid()}.${ext}`;
+        // Org-scoped path (0004 storage policy enforces it server-side too):
+        // uploads/<org-uuid>/<file> — falls back to uploads/legacy/ only while
+        // the caller has no membership yet (pre-backfill window).
+        let path;
+        try {
+          const { data: orgs } = await sb.rpc("get_my_org_ids");
+          const orgId = orgs?.[0] ?? null;
+          path = orgId
+            ? `uploads/${orgId}/${uid()}.${ext}`
+            : `uploads/legacy/${uid()}.${ext}`;
+        } catch {
+          path = `uploads/legacy/${uid()}.${ext}`;
+        }
         const { error } = await sb.storage.from("fleetflow-media").upload(path, file);
         if (error) throw new Error(error.message);
         const { data } = sb.storage.from("fleetflow-media").getPublicUrl(path);
@@ -1203,6 +1216,7 @@ const localApi = {
     ServiceLog: makeEntity("ServiceLog"),
     FuelLog: makeEntity("FuelLog"),
     IncidentLog: makeEntity("IncidentLog"),
+    SavedReport: makeEntity("SavedReport"),
     User: makeEntity("User"),
   },
   auth: localAuth,
