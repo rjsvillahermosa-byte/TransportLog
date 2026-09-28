@@ -36,6 +36,7 @@ const NAV_ITEMS = [
   { label: "History", path: "/history", icon: History },
   { label: "QR Codes", path: "/qr-codes", icon: QrCode },
   { label: "Settings", path: "/settings", icon: SettingsIcon },
+  { label: "Clients", path: "/organizations", icon: Building2, adminOnly: true },
 ];
 
 // --- toasts ---------------------------------------------------------------
@@ -135,7 +136,11 @@ export default function Layout({ user, children }) {
   const isAdmin = isSuper || user?.role === "Admin";
   const canReports = isAdmin || user?.role === "Supervisor";
   const navItems = NAV_ITEMS.filter((i) =>
-    i.path === "/settings" ? isAdmin : i.path === "/reports" ? canReports : true
+    i.path === "/settings" || i.path === "/organizations"
+      ? isAdmin
+      : i.path === "/reports"
+      ? canReports
+      : true
   );
 
   const toast = useCallback((t) => {

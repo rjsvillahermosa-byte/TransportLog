@@ -125,18 +125,23 @@ $$;
 alter table public.organizations enable row level security;
 alter table public.organization_members enable row level security;
 
+drop policy if exists "orgs code lookup" on public.organizations;
 create policy "orgs code lookup" on public.organizations
   for select using (true);  -- code/name/plan only; RLS on data does the real locking
 
+drop policy if exists "orgs read own" on public.organizations;
 create policy "orgs read own" on public.organizations
   for select using (id in (select public.get_my_org_ids()));
 
+drop policy if exists "orgs admins update" on public.organizations;
 create policy "orgs admins update" on public.organizations
   for update using (public.get_my_org_role(id) in ('Super Admin','Admin'))
   with check (public.get_my_org_role(id) in ('Super Admin','Admin'));
 
+drop policy if exists "members read own orgs" on public.organization_members;
 create policy "members read own orgs" on public.organization_members
   for select using (organization_id in (select public.get_my_org_ids()));
+drop policy if exists "members admins manage" on public.organization_members;
 create policy "members admins manage" on public.organization_members
   for all using (public.get_my_org_role(organization_id) in ('Super Admin','Admin'))
   with check (public.get_my_org_role(organization_id) in ('Super Admin','Admin'));
@@ -161,6 +166,7 @@ begin
     execute format('alter table public.%I enable row level security', t);
     -- 0001 policies are dropped by name if present, then replaced wholesale.
     execute format('drop policy if exists %I on public.%I', t || ' active all', t);
+    execute format('drop policy if exists %I on public.%I', t || '_org_scoped', t);
     execute format($ddl$
       create policy %I on public.%I
         for all using (public.assert_org_access(organization_id))
@@ -172,6 +178,8 @@ end $$;
 -- org_settings: admins read/update their org's row
 drop policy if exists "org_settings read" on public.org_settings;
 drop policy if exists "org_settings admins update" on public.org_settings;
+drop policy if exists "org_settings org read" on public.org_settings;
+drop policy if exists "org_settings org update" on public.org_settings;
 create policy "org_settings org read" on public.org_settings
   for select using (public.assert_org_access(organization_id) or public.is_platform_super());
 create policy "org_settings org update" on public.org_settings

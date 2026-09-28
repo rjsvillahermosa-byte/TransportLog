@@ -18,6 +18,7 @@ import History from "./pages/History";
 import QrCodes from "./pages/QrCodes";
 import Settings, { AdminOnlyNotice } from "./pages/Settings";
 import Reports from "./pages/Reports";
+import Organizations from "./pages/Organizations";
 import Landing from "./pages/Landing";
 import { LoginPage } from "./pages/Auth";
 import { RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./pages/AuthExtra";
@@ -77,6 +78,8 @@ function Shell() {
           title="Supervisor access only"
           message="The report builder is limited to Supervisor and Admin accounts. Ask your administrator for access."
         />
+      ) : location.pathname === "/organizations" ? (
+        <Organizations user={user} />
       ) : (
         <Routes>
           <Route path="/" element={<Missions user={user} />} />
