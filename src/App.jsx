@@ -19,6 +19,7 @@ import QrCodes from "./pages/QrCodes";
 import Settings, { AdminOnlyNotice } from "./pages/Settings";
 import Reports from "./pages/Reports";
 import Organizations from "./pages/Organizations";
+import Console from "./pages/Console";
 import Landing from "./pages/Landing";
 import { LoginPage } from "./pages/Auth";
 import { RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./pages/AuthExtra";
@@ -80,6 +81,15 @@ function Shell() {
         />
       ) : location.pathname === "/organizations" ? (
         <Organizations user={user} />
+      ) : location.pathname === "/console" ? (
+        user.role === "Super Admin" ? (
+          <Console user={user} />
+        ) : (
+          <AdminOnlyNotice
+            title="Super Admin only"
+            message="The Console maps the entire platform and is limited to Super Admin accounts."
+          />
+        )
       ) : (
         <Routes>
           <Route path="/" element={<Missions user={user} />} />

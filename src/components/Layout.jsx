@@ -20,6 +20,7 @@ import {
   RefreshCw,
   LogOut,
   CheckCircle2,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { auth, drainQueue, useOnline, usePendingCount, onDataChange } from "../lib/db";
@@ -27,18 +28,37 @@ import { Button } from "./ui";
 import VoiceAssistant from "./VoiceAssistant";
 import { useBranding } from "../lib/branding";
 
-const NAV_ITEMS = [
-  { label: "Missions", path: "/", icon: ClipboardList },
-  { label: "FO Dashboard", path: "/fo-dashboard", icon: LayoutDashboard },
-  { label: "Fleet", path: "/fleet", icon: Car },
-  { label: "Fuel", path: "/fuel", icon: Droplets },
-  { label: "Reports", path: "/reports", icon: Printer },
-  { label: "New Booking", path: "/new-booking", icon: PlusCircle },
-  { label: "History", path: "/history", icon: History },
-  { label: "QR Codes", path: "/qr-codes", icon: QrCode },
-  { label: "Settings", path: "/settings", icon: SettingsIcon },
-  { label: "Clients", path: "/organizations", icon: Building2, adminOnly: true },
+// Grouped nav — sections mirror the Super Admin Console map. Flat order
+// (what desktop shows / auto-fit measures) comes from flattening these.
+const NAV_GROUPS = [
+  {
+    label: "Operations",
+    items: [
+      { label: "Missions", path: "/", icon: ClipboardList },
+      { label: "FO Dashboard", path: "/fo-dashboard", icon: LayoutDashboard },
+      { label: "New Booking", path: "/new-booking", icon: PlusCircle },
+      { label: "History", path: "/history", icon: History },
+      { label: "QR Codes", path: "/qr-codes", icon: QrCode },
+    ],
+  },
+  {
+    label: "Fleet & Fuel",
+    items: [
+      { label: "Fleet", path: "/fleet", icon: Car },
+      { label: "Fuel", path: "/fuel", icon: Droplets },
+      { label: "Reports", path: "/reports", icon: Printer },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      { label: "Clients", path: "/organizations", icon: Building2, adminOnly: true },
+      { label: "Console", path: "/console", icon: ShieldCheck, superOnly: true },
+      { label: "Settings", path: "/settings", icon: SettingsIcon, adminOnly: true },
+    ],
+  },
 ];
+const NAV_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
 
 // --- toasts ---------------------------------------------------------------
 const ToastCtx = createContext(() => {});
@@ -137,12 +157,12 @@ export default function Layout({ user, children }) {
   const isAdmin = isSuper || user?.role === "Admin";
   const canReports = isAdmin || user?.role === "Supervisor";
   const navItems = NAV_ITEMS.filter((i) =>
-    i.path === "/settings" || i.path === "/organizations"
-      ? isAdmin
-      : i.path === "/reports"
-      ? canReports
-      : true
+    i.superOnly ? isSuper : i.adminOnly ? isAdmin : i.path === "/reports" ? canReports : true
   );
+  const visibleGroups = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => navItems.some((n) => n.path === i.path)),
+  })).filter((g) => g.items.length > 0);
 
   const toast = useCallback((t) => {
     const id = ++idRef.current;
@@ -302,22 +322,34 @@ export default function Layout({ user, children }) {
                             right: Math.max(8, window.innerWidth - (moreWrapRef.current?.getBoundingClientRect().right ?? 16)),
                           }}
                         >
-                          {overflowNav.map((item) => {
-                            const active = location.pathname === item.path;
-                            return (
-                              <Link
-                                key={item.path}
-                                to={item.path}
-                                className={cn(
-                                  "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold",
-                                  active ? "bg-brand text-white" : "text-mocha hover:bg-mint/60"
-                                )}
-                              >
-                                <item.icon className="w-4 h-4" />
-                                {item.label}
-                              </Link>
-                            );
-                          })}
+                          {overflowNav.length > 0 &&
+                            visibleGroups.map((group, gi) => {
+                              const items = group.items.filter((i) => overflowNav.some((o) => o.path === i.path));
+                              if (items.length === 0) return null;
+                              return (
+                                <div key={group.label} className={gi > 0 ? "mt-2 pt-2 border-t border-sand/60" : ""}>
+                                  <p className="px-3 pb-1 pt-1 text-[10px] font-bold uppercase tracking-widest text-taupe/80">
+                                    {group.label}
+                                  </p>
+                                  {items.map((item) => {
+                                    const active = location.pathname === item.path;
+                                    return (
+                                      <Link
+                                        key={item.path}
+                                        to={item.path}
+                                        className={cn(
+                                          "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold",
+                                          active ? "bg-brand text-white" : "text-mocha hover:bg-mint/60"
+                                        )}
+                                      >
+                                        <item.icon className="w-4 h-4" />
+                                        {item.label}
+                                      </Link>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })}
                         </div>
                       </>,
                       document.body
@@ -349,23 +381,30 @@ export default function Layout({ user, children }) {
           </div>
 
           {menuOpen && (
-            <nav className="lg:hidden border-t border-sand/70 bg-white px-3 py-2 space-y-1">
-              {navItems.map((item) => {
-                const active = location.pathname === item.path;
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium",
-                      active ? "bg-brand text-white" : "text-mocha hover:bg-mint/60"
-                    )}
-                  >
-                    <item.icon className="w-4 h-4" />
-                    {item.label}
-                  </Link>
-                );
-              })}
+            <nav className="lg:hidden border-t border-sand/70 bg-white px-3 py-2 max-h-[70vh] overflow-y-auto">
+              {visibleGroups.map((group, gi) => (
+                <div key={group.label} className={gi > 0 ? "mt-3 pt-3 border-t border-sand/60" : ""}>
+                  <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-taupe/80">
+                    {group.label}
+                  </p>
+                  {group.items.map((item) => {
+                    const active = location.pathname === item.path;
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium",
+                          active ? "bg-brand text-white" : "text-mocha hover:bg-mint/60"
+                        )}
+                      >
+                        <item.icon className="w-4 h-4" />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ))}
             </nav>
           )}
         </header>

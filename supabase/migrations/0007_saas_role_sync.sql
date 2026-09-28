@@ -13,9 +13,10 @@
 -- user). Result: a client org owner could see all their org's DATA but got
 -- a Staff UI — no Settings, no Reports, gated Console.
 --
--- FIX: upgrade-only sync. When a membership role ranks higher on the app
--- ladder than the profile role, the profile follows (never downgrades —
--- app-wide capability stays even if an org lists someone lower).
+-- FIX: upgrade-only sync of MANAGEMENT roles (Super Admin / Admin /
+-- Supervisor). Driver and Staff memberships never sync — they're narrower
+-- operational scopes, not capability upgrades. profiles.role never
+-- downgrades: an app-wide role stays even if an org lists someone lower.
 -- Backfills every existing account the same way.
 --
 -- Requires: 0003 (organization_members). Re-runnable.
@@ -30,11 +31,14 @@ as $$
 declare
   best text;
 begin
-  -- Highest-ranked ACTIVE membership role across the user's orgs.
+  -- Highest-ranked ACTIVE management role across the user's orgs.
+  -- Driver/Staff memberships never sync: they are narrower operational
+  -- scopes, not app-wide capability upgrades — a Staff profile stays Staff.
   select m.role into best
     from public.organization_members m
    where m.user_id = new.user_id
      and m.status = 'Active'
+     and m.role in ('Super Admin', 'Admin', 'Supervisor')
    order by case m.role
      when 'Super Admin' then 4
      when 'Admin'       then 3
@@ -91,6 +95,7 @@ update public.profiles p
               end desc))[1] as best
       from public.organization_members m
      where m.status = 'Active'
+       and m.role in ('Super Admin', 'Admin', 'Supervisor')
      group by m.user_id
   ) ranked
  where p.id = ranked.user_id::text
