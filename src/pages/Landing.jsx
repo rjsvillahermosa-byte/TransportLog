@@ -203,14 +203,15 @@ export default function Landing() {
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-12 md:grid-cols-2 md:pt-20">
           <div>
             <p className="mb-4 inline-flex items-center rounded-full bg-mint px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand">
-              Hotel transport management
+              Fleet & Transport Management
             </p>
             <h1 className="font-heading text-4xl font-extrabold leading-tight text-cocoa sm:text-5xl">
               Every trip logged. Every kilometer verified.
             </h1>
             <p className="mt-5 max-w-lg text-base leading-relaxed text-mocha">
-              FleetFlow keeps your hotel's drivers, vehicles and missions in one place — dispatch a trip, capture the
-              odometer by photo, and know exactly where every kilometer went.
+              FleetFlow keeps your drivers, vehicles, and missions in one place —
+              dispatch a trip, capture the odometer by photo, and know exactly
+              where every kilometer went.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/register" className={PRIMARY_BTN}>
