@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Droplets,
+  ExternalLink,
   Fuel as FuelIcon,
   Plus,
   Wallet,
@@ -669,10 +670,23 @@ export default function Fuel() {
       )}
 
       {!loading && !selected && (
-        <p className="text-xs text-taupe mt-6 flex items-center gap-1.5">
+        <p className="text-xs text-taupe mt-6 flex items-center gap-1.5 flex-wrap">
           <Droplets className="w-3.5 h-3.5" />
           Audit rules: tank capacity · odometer sequence · impossible efficiency · abnormal thirst ·
           market {sym}/L band · statistical outlier · unaccounted km vs verified missions — bands configurable in Settings
+          {fuelWatch.sourceUrl && (
+            <>
+              {" · "}
+              <a
+                href={fuelWatch.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand hover:underline inline-flex items-center gap-1"
+              >
+                Check current price <ExternalLink className="w-3 h-3" />
+              </a>
+            </>
+          )}
         </p>
       )}
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Droplets, Loader2, RefreshCw } from "lucide-react";
+import { Droplets, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import { Button, Input, Label } from "../components/ui";
 import { useToast } from "../components/Layout";
 import {
@@ -131,6 +131,16 @@ export default function FuelPriceWatchCard() {
             Refresh Now
           </Button>
         </div>
+        {watch.sourceUrl && (
+          <a
+            href={watch.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-brand hover:underline mt-2"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Open source in a new tab to check by eye
+          </a>
+        )}
         <div className="mt-2">
           <Label className="mb-1.5">Region / city (optional)</Label>
           <Input
