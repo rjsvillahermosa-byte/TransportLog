@@ -623,21 +623,27 @@ export default function Settings({ user }) {
     refreshUsers();
   }, []);
 
-  const removeUser = (u) => {
+  const removeUser = async (u) => {
     const isDemo = u.is_demo || /@fleetflow\.test$/i.test(u.email || "");
     const msg = isDemo
       ? `Delete the demo account "${u.full_name}"?\n\nAll bookings, missions, fuel logs and entries created by this demo account will also be wiped from the database.`
-      : `Delete the account for ${u.full_name}? They will no longer be able to sign in.`;
+      : `Disable the account for ${u.full_name}? They will no longer be able to sign in. The account stays on this list, marked Disabled, since it can't be fully erased from here.`;
     if (!window.confirm(msg)) return;
     try {
-      userAdmin.remove(u.id, user.email, user.role, isDemo);
-      refreshUsers();
+      // Was fire-and-forget (no await) — refreshUsers() and the success
+      // toast fired immediately, often before the disable had actually
+      // committed, so the list could reload showing the old, unchanged
+      // status. It also meant a real failure here (e.g. a permission
+      // check) became a silently-swallowed rejected promise instead of
+      // reaching this catch — the toast claimed success regardless.
+      await userAdmin.remove(u.id, user.email, user.role, isDemo);
+      await refreshUsers();
       toast({
-        title: isDemo ? "Demo account deleted" : "User deleted",
-        description: isDemo ? "Everything they created was wiped from the database." : "",
+        title: isDemo ? "Demo account deleted" : "Account disabled",
+        description: isDemo ? "Everything they created was wiped from the database." : "They can no longer sign in.",
       });
     } catch (e2) {
-      alert(e2.message);
+      toast({ title: "Couldn't disable this account", description: e2.message });
     }
   };
 

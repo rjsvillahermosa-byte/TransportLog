@@ -666,13 +666,13 @@ export default function Fuel() {
               <Plus className="w-4 h-4" /> Log Fill-up
             </Button>
           </div>
-          <p className="text-[10px] text-taupe">
+          <p className="text-xs text-mocha">
             Fuel pricing reference courtesy of{" "}
             <a
               href="https://metrofueltracker.com/"
               target="_blank"
               rel="noopener noreferrer"
-              className="underline decoration-dotted hover:text-brand"
+              className="font-medium underline decoration-dotted hover:text-brand"
             >
               MetroFuel Tracker
             </a>
