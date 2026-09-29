@@ -43,6 +43,7 @@ import {
   Textarea,
 } from "../components/ui";
 import { DatePicker } from "../components/DatePicker";
+import { getSupabaseClient } from "../lib/supabaseClient";
 import { useToast } from "../components/Layout";
 
 // ---------------------------------------------------------------------------
@@ -77,6 +78,7 @@ const emptyVehicle = {
   insurance_photo: "",
   tire_life_km: 40000,
   tire_changed_odometer: "",
+  start_odometer_km: "",
 };
 const emptyService = {
   vehicle_plate: "",
@@ -326,7 +328,11 @@ const INS_PROMPT =
   "Read this motor vehicle insurance policy / certificate of cover photo. Extract into JSON: " +
   "provider, policy_number, insurance_expiry (YYYY-MM-DD).";
 
-function VehicleModal({ open, onClose, initial, onSaved }) {
+// Baseline ODO edits: Admin/Super Admin only in the UI — and the database
+// trigger (0011) enforces the same rule + writes odometer_audit for every change.
+const isAdminLevel = (u) => u?.role === "Super Admin" || u?.role === "Admin";
+
+function VehicleModal({ open, onClose, initial, onSaved, canEditOdo = false }) {
   const toast = useToast();
   const [form, setForm] = useState(initial || emptyVehicle);
   const [busy, setBusy] = useState(false);
@@ -340,6 +346,19 @@ function VehicleModal({ open, onClose, initial, onSaved }) {
   const suggestion = suggestPms(form.model);
   const applySuggestion = () =>
     setForm((f) => ({ ...f, pms_interval_km: suggestion.intervalKm, pms_interval_months: suggestion.intervalMonths }));
+
+  // Expiry-date guardrails: live status hint + confirm before saving an
+  // already-expired date (the renewals board keys off these fields).
+  const today = dayjs().format("YYYY-MM-DD");
+  const expiryHint = (dateStr) => {
+    if (!dateStr) return null;
+    const days = dayjs(dateStr).diff(dayjs(), "day");
+    if (days < 0) return { text: `Expired ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} ago`, tone: "text-red-600" };
+    if (days <= 30) return { text: `Due in ${days} day${days === 1 ? "" : "s"}`, tone: "text-orange" };
+    return { text: `Valid until ${dayjs(dateStr).format("MMM D, YYYY")}`, tone: "text-taupe" };
+  };
+  const regHint = expiryHint(form.registration_expiry);
+  const insHint = expiryHint(form.insurance_expiry);
 
   // Vehicle photo: pick → downscale → data URL (same upload path as ODO/receipt
   // photos). Works at enrollment and later via Edit (replace/remove).
@@ -389,6 +408,12 @@ function VehicleModal({ open, onClose, initial, onSaved }) {
 
   const save = async () => {
     if (!form.plate_number.trim()) return;
+    const expired =
+      (form.registration_expiry && form.registration_expiry < today) ||
+      (form.insurance_expiry && form.insurance_expiry < today);
+    if (expired && !window.confirm("One or more expiry dates are already in the past. Save anyway?\n\nYou can update the date later — the renewals board will flag this vehicle until then.")) {
+      return;
+    }
     setBusy(true);
     try {
       const payload = {
@@ -399,6 +424,7 @@ function VehicleModal({ open, onClose, initial, onSaved }) {
         pms_interval_months: Number(form.pms_interval_months) || 6,
         registration_expiry: form.registration_expiry || null,
         insurance_expiry: form.insurance_expiry || null,
+        start_odometer_km: form.start_odometer_km === "" ? null : Number(form.start_odometer_km),
       };
       if (initial?.id) await api.entities.Vehicle.update(initial.id, payload);
       else await api.entities.Vehicle.create(payload);
@@ -480,6 +506,23 @@ function VehicleModal({ open, onClose, initial, onSaved }) {
           <Label>Model</Label>
           <Input value={form.model} onChange={set("model")} placeholder="Toyota Hiace Grandia" />
         </div>
+        <div className="col-span-2 space-y-1.5">
+          <Label>Start ODO (km) — odometer at enrollment</Label>
+          <Input
+            type="number"
+            min="0"
+            value={form.start_odometer_km}
+            onChange={set("start_odometer_km")}
+            placeholder="e.g. 38400"
+            readOnly={!canEditOdo && initial?.id}
+            title={!canEditOdo && initial?.id ? "Only Admin or Super Admin can change the baseline odometer" : undefined}
+          />
+          <p className="text-[11px] text-taupe">
+            {canEditOdo || !initial?.id
+              ? "Baseline for this vehicle's odometer. Mission Start ODO pre-fills from here so distances are always measurable — drivers still verify with the dashboard photo. Every change is audit-logged."
+              : "Only Admin or Super Admin can change the baseline odometer — every change is recorded in the audit trail."}
+          </p>
+        </div>
         <div className="space-y-1.5">
           <Label>Fuel Type</Label>
           <Select value={form.fuel_type} onChange={set("fuel_type")}>
@@ -536,6 +579,7 @@ function VehicleModal({ open, onClose, initial, onSaved }) {
               value={form.registration_expiry}
               onChange={(v) => setForm((f) => ({ ...f, registration_expiry: v }))}
             />
+            {regHint && <p className={"text-[11px] " + regHint.tone}>{regHint.text}</p>}
             <button
               type="button"
               onClick={() => regRef.current?.click()}
@@ -555,6 +599,7 @@ function VehicleModal({ open, onClose, initial, onSaved }) {
               value={form.insurance_expiry}
               onChange={(v) => setForm((f) => ({ ...f, insurance_expiry: v }))}
             />
+            {insHint && <p className={"text-[11px] " + insHint.tone}>{insHint.text}</p>}
             <button
               type="button"
               onClick={() => insRef.current?.click()}
@@ -812,6 +857,33 @@ function AssetRecordModal({ open, onClose, vehicle, services }) {
     .sort((a, b) => dayjs(b.service_date).valueOf() - dayjs(a.service_date).valueOf());
   const totalSpend = mine.reduce((s, x) => s + (Number(x.cost) || 0), 0);
   const [photo, setPhoto] = useState(null);
+  const [odoAudit, setOdoAudit] = useState([]);
+
+  // Baseline-ODO audit trail (0011) — who changed it, from what, to what.
+  useEffect(() => {
+    if (!open || !vehicle?.id) {
+      setOdoAudit([]);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const sb = getSupabaseClient();
+        const { data } = await sb
+          .from("odometer_audit")
+          .select("old_value, new_value, changed_by_email, changed_by_role, changed_at")
+          .eq("vehicle_id", vehicle.id)
+          .order("changed_at", { ascending: false })
+          .limit(10);
+        if (alive) setOdoAudit(data || []);
+      } catch {
+        if (alive) setOdoAudit([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [open, vehicle?.id]);
 
   return (
     <Modal open={open} onClose={() => { setPhoto(null); onClose(); }} title={`Asset Record — ${vehicle?.plate_number || ""}`}>
@@ -843,6 +915,29 @@ function AssetRecordModal({ open, onClose, vehicle, services }) {
             {Number(vehicle?.pms_interval_km).toLocaleString()} km / {vehicle?.pms_interval_months} mo
           </p>
         </div>
+        <div>
+          <p className="text-xs text-taupe">Baseline ODO</p>
+          <p className="text-cocoa font-medium">
+            {vehicle?.start_odometer_km != null
+              ? `${Number(vehicle.start_odometer_km).toLocaleString()} km`
+              : "Not set"}
+          </p>
+        </div>
+        {odoAudit.length > 0 && (
+          <div className="col-span-2 border-t border-sand/70 pt-2">
+            <p className="text-xs text-taupe mb-1.5">Baseline ODO change log</p>
+            <div className="space-y-1">
+              {odoAudit.map((a) => (
+                <p key={a.changed_at} className="text-xs text-mocha">
+                  {dayjs(a.changed_at).format("MMM D, YYYY h:mm A")} — {Number(a.old_value ?? 0).toLocaleString()} →{" "}
+                  <span className="font-semibold text-cocoa">{Number(a.new_value).toLocaleString()}</span> km
+                  {a.changed_by_email ? ` · ${a.changed_by_email}` : " · system"}
+                  {a.changed_by_role ? ` (${a.changed_by_role})` : ""}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="col-span-2 border-t border-sand/70 pt-2">
           <p className="text-xs text-taupe">Total recorded service spend</p>
           <p className="text-cocoa font-bold">₱{totalSpend.toLocaleString()} · {mine.length} service record{mine.length === 1 ? "" : "s"}</p>
@@ -949,7 +1044,7 @@ function RenewalRow({ icon: Icon, title, entity, detail, sub, status, progress, 
 // ---------------------------------------------------------------------------
 // Fleet page
 // ---------------------------------------------------------------------------
-export default function Fleet() {
+export default function Fleet({ user }) {
   const toast = useToast();
   const [tab, setTab] = useState("drivers");
   const [drivers, setDrivers] = useState([]);
@@ -961,6 +1056,7 @@ export default function Fleet() {
   const [modal, setModal] = useState(null); // {type, initial?, presetPlate?}
   const [assetVehicle, setAssetVehicle] = useState(null);
   const alertedRef = useRef(false);
+  const canEditOdo = isAdminLevel(user);
 
   const load = async () => {
     setLoading(true);
@@ -1394,6 +1490,7 @@ export default function Fleet() {
           open
           onClose={() => setModal(null)}
           initial={modal.initial}
+          canEditOdo={canEditOdo}
           onSaved={() => {
             setModal(null);
             toast({ title: "Vehicle saved" });

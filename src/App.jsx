@@ -95,7 +95,7 @@ function Shell() {
           <Route path="/" element={<Missions user={user} />} />
           <Route path="/mission/:id" element={<MissionDetail />} />
           <Route path="/fo-dashboard" element={<FoDashboard />} />
-          <Route path="/fleet" element={<Fleet />} />
+          <Route path="/fleet" element={<Fleet user={user} />} />
           <Route path="/fuel" element={<Fuel />} />
           <Route path="/new-booking" element={<NewBooking user={user} />} />
           <Route path="/history" element={<History />} />
