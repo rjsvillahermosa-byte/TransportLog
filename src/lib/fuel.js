@@ -37,7 +37,7 @@ let watchInflight = null;
 const watchListeners = new Set();
 
 function defaultWatch() {
-  return { bands: { ...DEFAULT_FUEL_CONFIG }, sourceUrl: "", region: "", lastCheckedAt: null, lastStatus: null };
+  return { bands: { ...DEFAULT_FUEL_CONFIG }, sourceUrl: "", region: "", lastCheckedAt: null, lastStatus: null, organization_id: null };
 }
 
 export async function loadFuelWatch(force = false) {
@@ -49,7 +49,7 @@ export async function loadFuelWatch(force = false) {
     try {
       const { data, error } = await sb
         .from("org_settings")
-        .select("fuel_bands, fuel_price_source_url, fuel_price_region, fuel_price_last_checked_at, fuel_price_last_status")
+        .select("organization_id, fuel_bands, fuel_price_source_url, fuel_price_region, fuel_price_last_checked_at, fuel_price_last_status")
         .order("organization_id", { nullsFirst: false })
         .limit(1);
       if (error || !data?.length) {
@@ -58,6 +58,9 @@ export async function loadFuelWatch(force = false) {
         const row = data[0];
         const bands = row.fuel_bands && typeof row.fuel_bands === "object" ? row.fuel_bands : {};
         watchCache = {
+          // kept so the saves below can target this exact row explicitly —
+          // the project requires a real WHERE clause on every UPDATE now.
+          organization_id: row.organization_id,
           bands: { ...DEFAULT_FUEL_CONFIG, ...bands },
           sourceUrl: row.fuel_price_source_url || "",
           region: row.fuel_price_region || "",
@@ -85,13 +88,31 @@ const NO_ROW_UPDATED =
   "Nothing was saved — your account isn't recognized as an Admin or Super Admin of an active organization. " +
   "Check Settings → Organizations, or ask your platform owner to check your membership.";
 
+// The project rejects any UPDATE with no real WHERE clause — RLS alone
+// used to be enough to scope these safely, but that's no longer accepted,
+// so every save needs its own organization row id to filter on explicitly.
+async function resolveOrgId() {
+  let orgId = watchCache?.organization_id;
+  if (!orgId) {
+    const fresh = await loadFuelWatch(true);
+    orgId = fresh.organization_id;
+  }
+  if (!orgId) throw new Error("Couldn't determine your organization — try reloading the page.");
+  return orgId;
+}
+
 export async function saveFuelBands(bands) {
   const sb = getSupabaseClient();
   if (!sb) throw new Error("Not connected");
-  const { data, error } = await sb.from("org_settings").update({ fuel_bands: bands }).select("organization_id");
+  const orgId = await resolveOrgId();
+  const { data, error } = await sb
+    .from("org_settings")
+    .update({ fuel_bands: bands })
+    .eq("organization_id", orgId)
+    .select("organization_id");
   if (error) throw new Error(error.message);
   if (!data?.length) throw new Error(NO_ROW_UPDATED);
-  watchCache = { ...(watchCache || defaultWatch()), bands };
+  watchCache = { ...(watchCache || defaultWatch()), organization_id: orgId, bands };
   watchListeners.forEach((l) => l(watchCache));
   return watchCache;
 }
@@ -99,13 +120,15 @@ export async function saveFuelBands(bands) {
 export async function saveFuelPriceSourceUrl(url, region) {
   const sb = getSupabaseClient();
   if (!sb) throw new Error("Not connected");
+  const orgId = await resolveOrgId();
   const { data, error } = await sb
     .from("org_settings")
     .update({ fuel_price_source_url: url || null, fuel_price_region: region || null })
+    .eq("organization_id", orgId)
     .select("organization_id");
   if (error) throw new Error(error.message);
   if (!data?.length) throw new Error(NO_ROW_UPDATED);
-  watchCache = { ...(watchCache || defaultWatch()), sourceUrl: url, region: region || "" };
+  watchCache = { ...(watchCache || defaultWatch()), organization_id: orgId, sourceUrl: url, region: region || "" };
   watchListeners.forEach((l) => l(watchCache));
   return watchCache;
 }
