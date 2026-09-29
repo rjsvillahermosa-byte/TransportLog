@@ -26,12 +26,9 @@ import { RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./pages/Aut
 
 const AUTH_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
 
+// True when the site was installed to the home screen (PWA) and opened from there.
 function isInstalledApp() {
-  return Boolean(
-    window.Capacitor?.isNativePlatform?.() ||
-      window.matchMedia?.("(display-mode: standalone)").matches ||
-      window.navigator.standalone
-  );
+  return Boolean(window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone);
 }
 
 function Shell() {
@@ -39,8 +36,8 @@ function Shell() {
   const [booting, setBooting] = useState(true);
   const location = useLocation();
   const isAuthPath = AUTH_PATHS.includes(location.pathname);
-  // Public landing page for logged-out web visitors only. Installed apps (the
-  // Capacitor APK and the PWA) go straight to login.
+  // Public landing page for logged-out web visitors only. An installed PWA
+  // goes straight to login.
   const isLanding = !user && location.pathname === "/" && !isInstalledApp();
 
   useEffect(() => {

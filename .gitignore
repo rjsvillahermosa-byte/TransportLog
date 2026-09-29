@@ -6,7 +6,6 @@ dist
 node_modules
 dist
 *.apk
-android
 android-native
 supabase/.temp/
 
