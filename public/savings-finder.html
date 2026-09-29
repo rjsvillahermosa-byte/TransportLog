@@ -377,7 +377,7 @@
         <div class="summary-stats-row">
           <div class="summary-stat">
             <div class="label">Avg fleet saved per vehicle</div>
-            <div class="value">₱2,450<span style="font-size:13px;color:var(--taupe)">/mo</span></div>
+            <div class="value" id="fleet-avg-value">—<span style="font-size:13px;color:var(--taupe)">/mo</span></div>
           </div>
           <div class="summary-stat">
             <div class="label">Your fleet (pick a route)</div>
@@ -429,7 +429,7 @@
     </div>
 
     <p class="analyzer-footnote">
-      Benchmarks reflect recent Philippine pump averages (diesel ≈ ₱58/L). Estimates — actual savings depend on your fleet.
+      Benchmarks reflect recent Philippine pump averages (diesel ≈ ₱99.99/L). Estimates — actual savings depend on your fleet.
     </p>
   </div>
 </section>
@@ -517,7 +517,7 @@
 <!-- ======================= LOGIC ======================= -->
 <script>
   /* ---------------- Constants ---------------- */
-  var DIESEL_PER_L = 58;             // PHP per liter — recent PH pump average
+  var DIESEL_PER_L = 99.99;          // PHP per liter — update as pump prices change
   var PH_BOUNDS = [[4.2, 114.4], [19.0, 127.5]];
   var ROUTE_COLORS = { good: "#1E7A5A", avg: "#C9970B", bad: "#B4552D" };
 
@@ -926,6 +926,16 @@
     s.onerror = onFail;
     document.head.appendChild(s);
   }
+
+  /* "Avg fleet saved per vehicle" — computed from the same monthlySavings()
+     used per-route below, not a hand-typed figure, so it never drifts out
+     of sync with DIESEL_PER_L again. Runs independently of the map so it
+     shows even if Leaflet fails to load. */
+  (function showFleetAvg() {
+    var avg = ROUTES.reduce(function (sum, r) { return sum + monthlySavings(r); }, 0) / ROUTES.length;
+    var el = document.getElementById("fleet-avg-value");
+    if (el) el.innerHTML = peso(avg) + '<span style="font-size:13px;color:var(--taupe)">/mo</span>';
+  })();
 
   loadLeaflet(initMap, showMapError);
 </script>
