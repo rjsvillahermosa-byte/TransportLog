@@ -4,7 +4,6 @@ import {
   Cloud,
   CloudOff,
   Crown,
-  Droplets,
   ImagePlus,
   Loader2,
   Lock,
@@ -19,7 +18,7 @@ import {
 } from "lucide-react";
 import { auth, drainQueue, integrations, resetTransportData, useOnline, usePendingCount, userAdmin } from "../lib/db";
 import { getSupabaseClient, supabaseActive } from "../lib/supabaseClient";
-import { getFuelConfig, saveFuelConfig } from "../lib/fuel";
+import FuelPriceWatchCard from "./FuelPriceWatchCard";
 import { applyTheme, DEFAULT_THEME, getTheme, resetTheme, saveTheme, THEME_PRESETS } from "../lib/theme";
 import {
   applyBranding,
@@ -584,7 +583,6 @@ export default function Settings({ user }) {
   const toast = useToast();
   const [syncing, setSyncing] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const [cfg, setCfg] = useState(getFuelConfig());
   const [theme, setTheme] = useState(getTheme());
 
   const pickPreset = (preset) => {
@@ -654,14 +652,6 @@ export default function Settings({ user }) {
     } catch (e2) {
       toast({ title: "Couldn't create demo account", description: e2.message });
     }
-  };
-
-  const setBand = (fuel, key) => (e) =>
-    setCfg((c) => ({ ...c, [fuel]: { ...c[fuel], [key]: Number(e.target.value) || 0 } }));
-
-  const saveBands = () => {
-    saveFuelConfig(cfg);
-    toast({ title: "Fuel price bands saved", description: "New fill-ups will be audited against these bands." });
   };
 
   const syncNow = async () => {
@@ -927,43 +917,7 @@ export default function Settings({ user }) {
       {/* Voice assistant */}
       <VoiceCard />
 
-      <div className="bg-white rounded-3xl shadow-card p-5 mb-6">
-        <div className="flex items-center gap-2 mb-1">
-          <Droplets className="w-4 h-4 text-brand" />
-          <h3 className="text-sm font-semibold text-cocoa">Fuel Price Bands (₱/L)</h3>
-        </div>
-        <p className="text-xs text-taupe mb-4">
-          Receipt prices outside these market bands are flagged on the Fuel page. Defaults follow
-          the DOE / GasWatch PH Metro Manila averages.
-        </p>
-        <div className="grid grid-cols-2 gap-4">
-          {(["gasoline", "diesel"]).map((fuel) => (
-            <div key={fuel}>
-              <Label className="text-xs capitalize">{fuel}</Label>
-              <div className="flex items-center gap-2 mt-1.5">
-                <Input
-                  type="number"
-                  value={cfg[fuel].min}
-                  onChange={setBand(fuel, "min")}
-                  className="h-9"
-                  aria-label={`${fuel} minimum`}
-                />
-                <span className="text-xs text-taupe">to</span>
-                <Input
-                  type="number"
-                  value={cfg[fuel].max}
-                  onChange={setBand(fuel, "max")}
-                  className="h-9"
-                  aria-label={`${fuel} maximum`}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-        <Button variant="outline" size="sm" className="mt-4" onClick={saveBands}>
-          Save Bands
-        </Button>
-      </div>
+      <FuelPriceWatchCard />
 
       <div className="bg-white rounded-xl border border-red-100 p-5">
         <h3 className="text-sm font-semibold text-red-700 mb-1">Danger Zone</h3>

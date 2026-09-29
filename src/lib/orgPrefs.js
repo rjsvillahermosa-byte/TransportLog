@@ -11,6 +11,8 @@ export const DEFAULT_PREFS = {
   location_presets: [], // [{ name, kind: "both"|"pickup"|"dropoff" }]
   time_format: "24h",   // the standard — avoids AM/PM scheduling confusion
   role_terms: {},       // { Admin: "Dispatcher", Staff: "Front Office", ... }
+  currency_code: "PHP", // ISO 4217 — set per-org so non-Philippine clients aren't shown ₱
+  currency_symbol: "₱",
 };
 
 let cache = null;         // module-level so navigation doesn't refetch
@@ -25,7 +27,7 @@ export async function loadOrgPrefs(force = false) {
     try {
       const { data, error } = await sb
         .from("org_settings")
-        .select("location_presets, time_format, role_terms")
+        .select("location_presets, time_format, role_terms, currency_code, currency_symbol")
         // the legacy NULL-org row is also visible to platform supers —
         // prefer the caller's real org row
         .order("organization_id", { nullsFirst: false })
@@ -42,6 +44,8 @@ export async function loadOrgPrefs(force = false) {
             data[0].role_terms && typeof data[0].role_terms === "object"
               ? data[0].role_terms
               : {},
+          currency_code: data[0].currency_code || DEFAULT_PREFS.currency_code,
+          currency_symbol: data[0].currency_symbol || DEFAULT_PREFS.currency_symbol,
         };
       }
     } catch {

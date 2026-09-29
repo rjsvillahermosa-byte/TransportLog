@@ -14,24 +14,123 @@
 //  • Every flag carries its numbers, so a reviewer sees WHY it fired.
 // ---------------------------------------------------------------------------
 
-const CFG_KEY = "fleetflow:fuelcfg";
-
-// Metro Manila pump bands (₱/L), Sept 2026 — GasWatch PH / DOE weekly monitor.
+// Placeholder bands used only until an org sets its own — either by hand in
+// Settings, or by configuring a fuel-price-watch source URL there (0020).
+// Not tied to any real market; every real org should set its own.
 export const DEFAULT_FUEL_CONFIG = {
   gasoline: { min: 70, max: 90 },
   diesel: { min: 80, max: 95 },
 };
 
-export function getFuelConfig() {
-  try {
-    const raw = localStorage.getItem(CFG_KEY);
-    if (raw) return { ...DEFAULT_FUEL_CONFIG, ...JSON.parse(raw) };
-  } catch {}
-  return { ...DEFAULT_FUEL_CONFIG };
+// ---------------------------------------------------------------------------
+// Per-org fuel bands + price-watch settings — org_settings.fuel_bands /
+// fuel_price_source_url / fuel_price_last_checked_at / fuel_price_last_status
+// (0020). Used to live in localStorage: per-device, never synced, and with
+// no way to auto-update. Same load/save/hook shape as orgPrefs.js.
+// ---------------------------------------------------------------------------
+
+import { useState, useEffect } from "react";
+import { getSupabaseClient, getSupabaseConfig } from "./supabaseClient";
+
+let watchCache = null;
+let watchInflight = null;
+const watchListeners = new Set();
+
+function defaultWatch() {
+  return { bands: { ...DEFAULT_FUEL_CONFIG }, sourceUrl: "", lastCheckedAt: null, lastStatus: null };
 }
 
-export function saveFuelConfig(cfg) {
-  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+export async function loadFuelWatch(force = false) {
+  if (!force && watchCache) return watchCache;
+  if (!force && watchInflight) return watchInflight;
+  const sb = getSupabaseClient();
+  if (!sb) return defaultWatch();
+  watchInflight = (async () => {
+    try {
+      const { data, error } = await sb
+        .from("org_settings")
+        .select("fuel_bands, fuel_price_source_url, fuel_price_last_checked_at, fuel_price_last_status")
+        .order("organization_id", { nullsFirst: false })
+        .limit(1);
+      if (error || !data?.length) {
+        watchCache = defaultWatch();
+      } else {
+        const row = data[0];
+        const bands = row.fuel_bands && typeof row.fuel_bands === "object" ? row.fuel_bands : {};
+        watchCache = {
+          bands: { ...DEFAULT_FUEL_CONFIG, ...bands },
+          sourceUrl: row.fuel_price_source_url || "",
+          lastCheckedAt: row.fuel_price_last_checked_at || null,
+          lastStatus: row.fuel_price_last_status || null,
+        };
+      }
+    } catch {
+      watchCache = defaultWatch();
+    } finally {
+      watchInflight = null;
+    }
+    return watchCache;
+  })();
+  return watchInflight;
+}
+
+export async function saveFuelBands(bands) {
+  const sb = getSupabaseClient();
+  if (!sb) throw new Error("Not connected");
+  const { error } = await sb.from("org_settings").update({ fuel_bands: bands });
+  if (error) throw new Error(error.message);
+  watchCache = { ...(watchCache || defaultWatch()), bands };
+  watchListeners.forEach((l) => l(watchCache));
+  return watchCache;
+}
+
+export async function saveFuelPriceSourceUrl(url) {
+  const sb = getSupabaseClient();
+  if (!sb) throw new Error("Not connected");
+  const { error } = await sb.from("org_settings").update({ fuel_price_source_url: url || null });
+  if (error) throw new Error(error.message);
+  watchCache = { ...(watchCache || defaultWatch()), sourceUrl: url };
+  watchListeners.forEach((l) => l(watchCache));
+  return watchCache;
+}
+
+/** Calls the fuel-price-watch edge function for the caller's own org, right now. */
+export async function refreshFuelPriceNow() {
+  const sb = getSupabaseClient();
+  if (!sb) throw new Error("Not connected");
+  const { data: sessData } = await sb.auth.getSession();
+  const token = sessData?.session?.access_token;
+  if (!token) throw new Error("You must be signed in to do this.");
+  const { url } = getSupabaseConfig();
+  const res = await fetch(`${url}/functions/v1/fuel-price-watch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({}),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || json.ok === false) throw new Error(json.message || json.error || "Refresh failed");
+  await loadFuelWatch(true); // pull the freshly-written bands/status back in
+  watchListeners.forEach((l) => l(watchCache));
+  return json;
+}
+
+export function onFuelWatchChange(fn) {
+  watchListeners.add(fn);
+  return () => watchListeners.delete(fn);
+}
+
+export function useFuelWatch() {
+  const [watch, setWatch] = useState(watchCache || defaultWatch());
+  useEffect(() => {
+    let alive = true;
+    loadFuelWatch().then((w) => alive && setWatch(w));
+    const off = onFuelWatchChange((w) => alive && setWatch(w));
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
+  return watch;
 }
 
 const RULES = {
@@ -78,12 +177,14 @@ function std(xs) {
  * @param {Array} fills      FuelLog rows (any order)
  * @param {Array} vehicles   Vehicle rows (needs fuel_type, tank_liters, rated_km_per_liter)
  * @param {Array} mileageLogs MileageLog rows (verified distances for cross-check)
- * @param {Object} config    { gasoline:{min,max}, diesel:{min,max} } ₱/L bands
+ * @param {Object} config    { gasoline:{min,max}, diesel:{min,max} } per-liter
+ *                           bands, in the org's own currency — see useFuelWatch()
+ * @param {string} currencySymbol  the org's currency symbol, for flag detail text
  * @returns fillAudits (per fill, with flags), segments (per full-to-full),
  *          vehicleSummaries (integrity score, avg km/L, spend)
  */
-export function auditFuel(fills, vehicles, mileageLogs, config) {
-  const cfg = config || getFuelConfig();
+export function auditFuel(fills, vehicles, mileageLogs, config, currencySymbol = "₱") {
+  const cfg = config || DEFAULT_FUEL_CONFIG;
   const specs = new Map(vehicles.map((v) => [v.plate_number, v]));
   const byPlate = new Map();
   fills.forEach((f) => {
@@ -137,7 +238,7 @@ export function auditFuel(fills, vehicles, mileageLogs, config) {
         a.flags.push({
           code: "price_band",
           ...RULES.price_band,
-          detail: `₱${pricePerL.toFixed(2)}/L on this receipt vs the ${fuelType} band ₱${band.min}–${band.max}/L. Wrong amount encoded, or a suspicious receipt.`,
+          detail: `${currencySymbol}${pricePerL.toFixed(2)}/L on this receipt vs the ${fuelType} band ${currencySymbol}${band.min}–${band.max}/L. Wrong amount encoded, or a suspicious receipt.`,
         });
       }
 

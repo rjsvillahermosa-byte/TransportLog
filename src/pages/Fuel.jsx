@@ -29,7 +29,8 @@ import {
   YAxis,
 } from "recharts";
 import { api } from "../lib/db";
-import { auditFuel, getFuelConfig, scoreStyle, severityStyle } from "../lib/fuel";
+import { auditFuel, useFuelWatch, scoreStyle, severityStyle } from "../lib/fuel";
+import { useOrgPrefs } from "../lib/orgPrefs";
 import { Button, EmptyState, Input, Label, Modal, Select, Spinner } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { cn } from "../lib/utils";
@@ -42,7 +43,7 @@ const pieColors = () => {
 // ---------------------------------------------------------------------------
 // Log fill-up modal
 // ---------------------------------------------------------------------------
-function LogFillModal({ open, onClose, vehicles, onSaved }) {
+function LogFillModal({ open, onClose, vehicles, onSaved, sym }) {
   const [form, setForm] = useState({
     vehicle_plate: "",
     fill_date: dayjs().format("YYYY-MM-DD"),
@@ -57,7 +58,7 @@ function LogFillModal({ open, onClose, vehicles, onSaved }) {
   const fileRef = useRef(null);
   const toast = useToast();
 
-  const cfg = getFuelConfig();
+  const cfg = useFuelWatch().bands;
   const set = (k) => (e) =>
     setForm((f) => ({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
 
@@ -133,16 +134,16 @@ function LogFillModal({ open, onClose, vehicles, onSaved }) {
           <Input type="number" step="0.1" value={form.liters} onChange={set("liters")} placeholder="e.g. 42.5" />
         </div>
         <div className="space-y-1.5">
-          <Label>Total Cost (₱) *</Label>
+          <Label>Total Cost ({sym}) *</Label>
           <Input type="number" step="0.01" value={form.cost} onChange={set("cost")} placeholder="e.g. 3900" />
         </div>
         {pricePerL > 0 && (
           <div className="col-span-2">
             <p className={cn("text-xs", priceOk ? "text-brand" : "text-red-600")}>
-              ₱{pricePerL.toFixed(2)}/L{" "}
+              {sym}{pricePerL.toFixed(2)}/L{" "}
               {priceOk
-                ? `— within the ${veh?.fuel_type} band (₱${band?.min}–${band?.max}/L) ✓`
-                : `— OUTSIDE the ${veh?.fuel_type} band (₱${band?.min}–₱${band?.max}/L); this fill will be flagged ⚠`}
+                ? `— within the ${veh?.fuel_type} band (${sym}${band?.min}–${band?.max}/L) ✓`
+                : `— OUTSIDE the ${veh?.fuel_type} band (${sym}${band?.min}–${sym}${band?.max}/L); this fill will be flagged ⚠`}
             </p>
           </div>
         )}
@@ -193,7 +194,7 @@ function LogFillModal({ open, onClose, vehicles, onSaved }) {
 // ---------------------------------------------------------------------------
 // Shared bits
 // ---------------------------------------------------------------------------
-function FlagCard({ audit }) {
+function FlagCard({ audit, sym }) {
   const [open, setOpen] = useState(false);
   const { fill, flags } = audit;
   const worst = flags.some((f) => f.severity === "red") ? "red" : "amber";
@@ -207,7 +208,7 @@ function FlagCard({ audit }) {
               {dayjs(fill.fill_date).format("MMM D, YYYY")} · {Number(fill.odometer).toLocaleString()} km
             </p>
             <p className="text-xs text-taupe truncate">
-              {Number(fill.liters).toFixed(1)} L · ₱{Number(fill.cost).toLocaleString()} · {fill.station || "—"}
+              {Number(fill.liters).toFixed(1)} L · {sym}{Number(fill.cost).toLocaleString()} · {fill.station || "—"}
             </p>
           </div>
         </div>
@@ -254,7 +255,7 @@ function Stat({ value, label, sub, tone }) {
 // ---------------------------------------------------------------------------
 // Company (fleet) summary view
 // ---------------------------------------------------------------------------
-function CompanySummary({ audit, fills, onSelectVehicle }) {
+function CompanySummary({ audit, fills, onSelectVehicle, sym }) {
   const spendAll = fills.reduce((s, f) => s + (Number(f.cost) || 0), 0);
   const litersAll = fills.reduce((s, f) => s + (Number(f.liters) || 0), 0);
   const spend30d = fills
@@ -294,15 +295,15 @@ function CompanySummary({ audit, fills, onSelectVehicle }) {
     <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <Stat
-          value={`₱${Math.round(spendAll).toLocaleString()}`}
+          value={`${sym}${Math.round(spendAll).toLocaleString()}`}
           label="Total fuel expense"
-          sub={`₱${Math.round(spend30d).toLocaleString()} in the last 30 days`}
+          sub={`${sym}${Math.round(spend30d).toLocaleString()} in the last 30 days`}
           tone="slate"
         />
         <Stat
           value={`${litersAll.toFixed(0)} L`}
           label="Total liters"
-          sub={`avg ₱${avgPrice.toFixed(2)}/L paid`}
+          sub={`avg ${sym}${avgPrice.toFixed(2)}/L paid`}
           tone="blue"
         />
         <Stat
@@ -312,7 +313,7 @@ function CompanySummary({ audit, fills, onSelectVehicle }) {
           tone="green"
         />
         <Stat
-          value={costPerKm ? `₱${costPerKm.toFixed(2)}` : "—"}
+          value={costPerKm ? `${sym}${costPerKm.toFixed(2)}` : "—"}
           label="Cost per km (fleet)"
           sub={`${flaggedCount} flagged fills · ${redCount} high-risk`}
           tone={redCount > 0 ? "red" : "slate"}
@@ -330,7 +331,7 @@ function CompanySummary({ audit, fills, onSelectVehicle }) {
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#8A8378" }} />
                 <YAxis tick={{ fontSize: 11, fill: "#8A8378" }} />
                 <Tooltip
-                  formatter={(v) => [`₱${Number(v).toLocaleString()}`, "Fuel spend"]}
+                  formatter={(v) => [`${sym}${Number(v).toLocaleString()}`, "Fuel spend"]}
                   contentStyle={{ borderRadius: 8, border: "1px solid #EFE6D8", fontSize: 12 }}
                 />
                 <Bar dataKey="cost" fill="#1E7A5A" radius={[4, 4, 0, 0]} />
@@ -355,7 +356,7 @@ function CompanySummary({ audit, fills, onSelectVehicle }) {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(v) => [`₱${Number(v).toLocaleString()}`, ""]}
+                      formatter={(v) => [`${sym}${Number(v).toLocaleString()}`, ""]}
                       contentStyle={{ borderRadius: 8, border: "1px solid #EFE6D8", fontSize: 12 }}
                     />
                   </PieChart>
@@ -370,7 +371,7 @@ function CompanySummary({ audit, fills, onSelectVehicle }) {
                   >
                     <span className="w-2.5 h-2.5 rounded-sm flex-none" style={{ background: pieColors()[i % pieColors().length] }} />
                     <span className="text-xs font-medium text-cocoa flex-1 truncate">{s.plate}</span>
-                    <span className="text-xs text-taupe">₱{s.cost.toLocaleString()}</span>
+                    <span className="text-xs text-taupe">{sym}{s.cost.toLocaleString()}</span>
                     <span className="text-xs text-taupe w-10 text-right">
                       {Math.round((s.cost / shareTotal) * 100)}%
                     </span>
@@ -410,7 +411,7 @@ function CompanySummary({ audit, fills, onSelectVehicle }) {
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="bg-mint/40 rounded-lg p-1.5">
-                  <p className="text-xs font-bold text-cocoa">₱{Math.round(s.totalSpend).toLocaleString()}</p>
+                  <p className="text-xs font-bold text-cocoa">{sym}{Math.round(s.totalSpend).toLocaleString()}</p>
                   <p className="text-[10px] text-taupe">spend</p>
                 </div>
                 <div className="bg-mint/40 rounded-lg p-1.5">
@@ -419,7 +420,7 @@ function CompanySummary({ audit, fills, onSelectVehicle }) {
                 </div>
                 <div className="bg-mint/40 rounded-lg p-1.5">
                   <p className={cn("text-xs font-bold", s.flaggedCount > 0 ? "text-red-600" : "text-brand")}>
-                    {cpk ? `₱${cpk.toFixed(1)}` : "—"}
+                    {cpk ? `${sym}${cpk.toFixed(1)}` : "—"}
                   </p>
                   <p className="text-[10px] text-taupe">per km</p>
                 </div>
@@ -438,7 +439,7 @@ function CompanySummary({ audit, fills, onSelectVehicle }) {
 // ---------------------------------------------------------------------------
 // Per-vehicle detail view
 // ---------------------------------------------------------------------------
-function VehicleDetail({ plate, audit, vehicles, onBack }) {
+function VehicleDetail({ plate, audit, vehicles, onBack, sym }) {
   const summary = audit.vehicleSummaries.find((s) => s.vehicle_plate === plate);
   const veh = vehicles.find((v) => v.plate_number === plate);
   if (!summary) return null;
@@ -479,9 +480,9 @@ function VehicleDetail({ plate, audit, vehicles, onBack }) {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <Stat value={`₱${Math.round(summary.totalSpend).toLocaleString()}`} label="Total spend" sub={`${summary.totalLiters.toFixed(0)} L purchased`} />
+        <Stat value={`${sym}${Math.round(summary.totalSpend).toLocaleString()}`} label="Total spend" sub={`${summary.totalLiters.toFixed(0)} L purchased`} />
         <Stat value={summary.avgKmpl ? summary.avgKmpl.toFixed(1) : "—"} label="Avg km/L" sub={`rated ${summary.rated_km_per_liter}`} tone="green" />
-        <Stat value={cpk ? `₱${cpk.toFixed(2)}` : "—"} label="Cost per km" sub={`${km.toLocaleString()} audited km`} tone="blue" />
+        <Stat value={cpk ? `${sym}${cpk.toFixed(2)}` : "—"} label="Cost per km" sub={`${km.toLocaleString()} audited km`} tone="blue" />
         <Stat value={String(summary.flaggedCount)} label="Flagged fills" sub={`of ${summary.fillCount} total`} tone={summary.flaggedCount > 0 ? "red" : "slate"} />
       </div>
 
@@ -514,7 +515,7 @@ function VehicleDetail({ plate, audit, vehicles, onBack }) {
           </h3>
           <div className="space-y-3">
             {myFlags.map((a) => (
-              <FlagCard key={a.fill.id} audit={a} />
+              <FlagCard key={a.fill.id} audit={a} sym={sym} />
             ))}
           </div>
         </div>
@@ -533,7 +534,7 @@ function VehicleDetail({ plate, audit, vehicles, onBack }) {
                 <th className="px-4 py-2.5">Date</th>
                 <th className="px-4 py-2.5 text-right">ODO</th>
                 <th className="px-4 py-2.5 text-right">Liters</th>
-                <th className="px-4 py-2.5 text-right">₱/L</th>
+                <th className="px-4 py-2.5 text-right">{sym}/L</th>
                 <th className="px-4 py-2.5 hidden sm:table-cell">Station</th>
                 <th className="px-4 py-2.5 text-right">Audit</th>
               </tr>
@@ -607,6 +608,8 @@ export default function Fuel() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [selected, setSelected] = useState(null);
+  const { currency_symbol: sym } = useOrgPrefs();
+  const fuelWatch = useFuelWatch();
 
   const load = async () => {
     setLoading(true);
@@ -627,7 +630,10 @@ export default function Fuel() {
     load();
   }, []);
 
-  const audit = useMemo(() => auditFuel(fills, vehicles, logs), [fills, vehicles, logs]);
+  const audit = useMemo(
+    () => auditFuel(fills, vehicles, logs, fuelWatch.bands, sym),
+    [fills, vehicles, logs, fuelWatch.bands, sym]
+  );
 
   return (
     <div>
@@ -657,16 +663,16 @@ export default function Fuel() {
           <Spinner className="w-6 h-6 text-taupe" />
         </div>
       ) : selected ? (
-        <VehicleDetail plate={selected} audit={audit} vehicles={vehicles} onBack={() => setSelected(null)} />
+        <VehicleDetail plate={selected} audit={audit} vehicles={vehicles} onBack={() => setSelected(null)} sym={sym} />
       ) : (
-        <CompanySummary audit={audit} fills={fills} onSelectVehicle={setSelected} />
+        <CompanySummary audit={audit} fills={fills} onSelectVehicle={setSelected} sym={sym} />
       )}
 
       {!loading && !selected && (
         <p className="text-xs text-taupe mt-6 flex items-center gap-1.5">
           <Droplets className="w-3.5 h-3.5" />
           Audit rules: tank capacity · odometer sequence · impossible efficiency · abnormal thirst ·
-          market ₱/L band · statistical outlier · unaccounted km vs verified missions — bands configurable in Settings
+          market {sym}/L band · statistical outlier · unaccounted km vs verified missions — bands configurable in Settings
         </p>
       )}
 
@@ -675,6 +681,7 @@ export default function Fuel() {
           open
           onClose={() => setModal(false)}
           vehicles={vehicles}
+          sym={sym}
           onSaved={() => {
             setModal(false);
             load();
