@@ -27,9 +27,9 @@ export function AuthLayout({ icon: Icon = Car, title, subtitle, footer, children
           {brand.logo ? (
             <img src={brand.logo} alt="Logo" className="w-14 h-14 rounded-3xl object-cover border border-sand mb-3 shadow-card" />
           ) : (
-            <div className="w-14 h-14 rounded-3xl bg-brand flex items-center justify-center mb-3 shadow-card">
-              <Icon className="w-7 h-7 text-white" />
-            </div>
+            // No custom logo uploaded — show the TransportLog Brand Kit mark
+            // (navy tile / orange pin / white arc), same asset as the favicon.
+            <img src="/logo.svg" alt="FleetFlow brand mark" className="w-14 h-14 rounded-3xl border border-sand mb-3 shadow-card" />
           )}
           <h1 className="text-2xl font-heading font-bold text-cocoa">{title}</h1>
           <p className="text-sm text-taupe mt-1">{subtitle}</p>

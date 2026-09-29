@@ -263,9 +263,14 @@ export default function Layout({ user, children }) {
                   className="rounded-2xl object-cover border border-sand bg-white flex-none"
                 />
               ) : (
-                <div className="w-9 h-9 rounded-2xl bg-brand flex items-center justify-center flex-none">
-                  <Car className="w-5 h-5 text-white" />
-                </div>
+                // No custom logo uploaded — show the TransportLog Brand Kit mark
+                // (navy tile / orange pin / white arc), same asset as the favicon.
+                <img
+                  src="/logo.svg"
+                  alt="FleetFlow brand mark"
+                  style={{ width: brand.logoSize || 36, height: brand.logoSize || 36 }}
+                  className="rounded-2xl object-contain border border-sand bg-white flex-none"
+                />
               )}
               <span className="font-heading text-lg font-bold text-cocoa truncate max-w-[170px] xl:max-w-[240px]">
                 {!brand.logo && brand.name === "FleetFlow" ? (
