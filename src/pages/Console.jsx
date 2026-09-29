@@ -20,6 +20,7 @@ import {
   Users,
 } from "lucide-react";
 import { useBranding } from "../lib/branding";
+import { PlatformTeamCard, ApiKeysCard } from "./PlatformAccessCard";
 
 // Super Admin Console — the grouped platform map. Sections mirror the nav
 // groups; cards cover everything that exists today plus clearly-marked
@@ -83,6 +84,10 @@ export default function Console({ user }) {
       <p className="text-sm text-taupe mt-1 mb-6">
         The full platform map for {brand.name}. Every section of the product, grouped the way it's operated.
       </p>
+
+      {/* Platform team roles + API integration (0014) */}
+      <PlatformTeamCard />
+      <ApiKeysCard />
 
       {SECTIONS.map((section) => (
         <div key={section.label} className="mb-6">
