@@ -653,6 +653,14 @@ export default function Fuel() {
               <Wallet className="w-4 h-4" /> Company Summary
             </Button>
           )}
+          <a
+            href="https://metrofueltracker.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-sand bg-white px-3 text-xs font-bold uppercase tracking-wide text-cocoa transition-colors hover:bg-mint/40"
+          >
+            <ExternalLink className="w-4 h-4" /> Check Fuel Pricing
+          </a>
           <Button variant="primary" size="sm" onClick={() => setModal(true)}>
             <Plus className="w-4 h-4" /> Log Fill-up
           </Button>
