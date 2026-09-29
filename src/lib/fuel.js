@@ -37,7 +37,7 @@ let watchInflight = null;
 const watchListeners = new Set();
 
 function defaultWatch() {
-  return { bands: { ...DEFAULT_FUEL_CONFIG }, sourceUrl: "", lastCheckedAt: null, lastStatus: null };
+  return { bands: { ...DEFAULT_FUEL_CONFIG }, sourceUrl: "", region: "", lastCheckedAt: null, lastStatus: null };
 }
 
 export async function loadFuelWatch(force = false) {
@@ -49,7 +49,7 @@ export async function loadFuelWatch(force = false) {
     try {
       const { data, error } = await sb
         .from("org_settings")
-        .select("fuel_bands, fuel_price_source_url, fuel_price_last_checked_at, fuel_price_last_status")
+        .select("fuel_bands, fuel_price_source_url, fuel_price_region, fuel_price_last_checked_at, fuel_price_last_status")
         .order("organization_id", { nullsFirst: false })
         .limit(1);
       if (error || !data?.length) {
@@ -60,6 +60,7 @@ export async function loadFuelWatch(force = false) {
         watchCache = {
           bands: { ...DEFAULT_FUEL_CONFIG, ...bands },
           sourceUrl: row.fuel_price_source_url || "",
+          region: row.fuel_price_region || "",
           lastCheckedAt: row.fuel_price_last_checked_at || null,
           lastStatus: row.fuel_price_last_status || null,
         };
@@ -84,12 +85,14 @@ export async function saveFuelBands(bands) {
   return watchCache;
 }
 
-export async function saveFuelPriceSourceUrl(url) {
+export async function saveFuelPriceSourceUrl(url, region) {
   const sb = getSupabaseClient();
   if (!sb) throw new Error("Not connected");
-  const { error } = await sb.from("org_settings").update({ fuel_price_source_url: url || null });
+  const { error } = await sb
+    .from("org_settings")
+    .update({ fuel_price_source_url: url || null, fuel_price_region: region || null });
   if (error) throw new Error(error.message);
-  watchCache = { ...(watchCache || defaultWatch()), sourceUrl: url };
+  watchCache = { ...(watchCache || defaultWatch()), sourceUrl: url, region: region || "" };
   watchListeners.forEach((l) => l(watchCache));
   return watchCache;
 }

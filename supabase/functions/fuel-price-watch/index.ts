@@ -81,7 +81,16 @@ function stripToText(html: string): string {
     .slice(0, 20000);
 }
 
-async function extractWithClaude(apiKey: string, pageText: string, sourceUrl: string) {
+function userTurn(pageText: string, sourceUrl: string, region?: string): string {
+  const regionLine = region
+    ? `The admin cares about prices for: ${region}. If this page lists more than one region/city, ` +
+      `read the price for THAT one specifically. If ${region} isn't listed on this page at all, ` +
+      `return null rather than guessing a different region's number.\n\n`
+    : "";
+  return `Source: ${sourceUrl}\n\n${regionLine}Page text:\n${pageText}`;
+}
+
+async function extractWithClaude(apiKey: string, pageText: string, sourceUrl: string, region?: string) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
@@ -97,7 +106,7 @@ async function extractWithClaude(apiKey: string, pageText: string, sourceUrl: st
       tool_choice: { type: "tool", name: "record_prices" },
       messages: [{
         role: "user",
-        content: `Source: ${sourceUrl}\n\nPage text:\n${pageText}`,
+        content: userTurn(pageText, sourceUrl, region),
       }],
     }),
   });
@@ -121,14 +130,14 @@ function toGeminiSchema() {
   return { type: "OBJECT", properties, required: ["confidence"] };
 }
 
-async function extractWithGemini(apiKey: string, pageText: string, sourceUrl: string) {
+async function extractWithGemini(apiKey: string, pageText: string, sourceUrl: string, region?: string) {
   const model = Deno.env.get("OCR_MODEL") ?? "gemini-2.5-flash";
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST",
     headers: { "x-goog-api-key": apiKey, "content-type": "application/json" },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: "user", parts: [{ text: `Source: ${sourceUrl}\n\nPage text:\n${pageText}` }] }],
+      contents: [{ role: "user", parts: [{ text: userTurn(pageText, sourceUrl, region) }] }],
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: toGeminiSchema(),
@@ -143,13 +152,15 @@ async function extractWithGemini(apiKey: string, pageText: string, sourceUrl: st
   return JSON.parse(text) as Record<string, unknown>;
 }
 
-async function extractPrices(pageText: string, sourceUrl: string) {
+async function extractPrices(pageText: string, sourceUrl: string, region?: string) {
   const geminiKey = Deno.env.get("GEMINI_API_KEY");
   const claudeKey = Deno.env.get("ANTHROPIC_API_KEY");
   const provider = Deno.env.get("OCR_PROVIDER") ?? (geminiKey ? "gemini" : "claude");
   const apiKey = provider === "gemini" ? geminiKey : claudeKey;
   if (!apiKey) throw new Error(`Not configured (missing ${provider === "gemini" ? "GEMINI_API_KEY" : "ANTHROPIC_API_KEY"})`);
-  return provider === "gemini" ? extractWithGemini(apiKey, pageText, sourceUrl) : extractWithClaude(apiKey, pageText, sourceUrl);
+  return provider === "gemini"
+    ? extractWithGemini(apiKey, pageText, sourceUrl, region)
+    : extractWithClaude(apiKey, pageText, sourceUrl, region);
 }
 
 // Point price -> a band, matching how the existing bands were shaped
@@ -164,11 +175,12 @@ function bandFrom(price: number) {
 async function refreshOrg(admin: any, organizationId: string) {
   const { data: settings, error: settingsErr } = await admin
     .from("org_settings")
-    .select("fuel_price_source_url, fuel_bands")
+    .select("fuel_price_source_url, fuel_price_region, fuel_bands")
     .eq("organization_id", organizationId)
     .maybeSingle();
   if (settingsErr) return { organization_id: organizationId, ok: false, message: settingsErr.message };
   const sourceUrl = settings?.fuel_price_source_url;
+  const region = typeof settings?.fuel_price_region === "string" ? settings.fuel_price_region.trim() : "";
   if (!sourceUrl) return { organization_id: organizationId, ok: false, message: "No source URL configured." };
 
   const problem = urlProblem(sourceUrl);
@@ -193,7 +205,7 @@ async function refreshOrg(admin: any, organizationId: string) {
 
   let extracted: Record<string, unknown>;
   try {
-    extracted = await extractPrices(pageText, sourceUrl);
+    extracted = await extractPrices(pageText, sourceUrl, region || undefined);
   } catch (e) {
     return await fail(e instanceof Error ? e.message : "Extraction failed.");
   }
@@ -223,6 +235,7 @@ async function refreshOrg(admin: any, organizationId: string) {
   const summary = [
     diesel !== null ? `diesel ${diesel}/L` : null,
     gasoline !== null ? `gasoline ${gasoline}/L` : null,
+    region ? `for ${region}` : null,
   ].filter(Boolean).join(", ");
 
   const { error: updateErr } = await admin.from("org_settings").update({

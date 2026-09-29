@@ -22,9 +22,10 @@ import { useOrgPrefs } from "../lib/orgPrefs";
 export default function FuelPriceWatchCard() {
   const toast = useToast();
   const prefs = useOrgPrefs();
-  const [watch, setWatch] = useState({ bands: DEFAULT_FUEL_CONFIG, sourceUrl: "", lastCheckedAt: null, lastStatus: null });
+  const [watch, setWatch] = useState({ bands: DEFAULT_FUEL_CONFIG, sourceUrl: "", region: "", lastCheckedAt: null, lastStatus: null });
   const [loaded, setLoaded] = useState(false);
   const [urlInput, setUrlInput] = useState("");
+  const [regionInput, setRegionInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -32,6 +33,7 @@ export default function FuelPriceWatchCard() {
     loadFuelWatch(true).then((w) => {
       setWatch(w);
       setUrlInput(w.sourceUrl || "");
+      setRegionInput(w.region || "");
       setLoaded(true);
     });
   }, []);
@@ -56,7 +58,7 @@ export default function FuelPriceWatchCard() {
   const saveUrl = async () => {
     setBusy(true);
     try {
-      const next = await saveFuelPriceSourceUrl(urlInput.trim());
+      const next = await saveFuelPriceSourceUrl(urlInput.trim(), regionInput.trim());
       setWatch(next);
       toast({
         title: urlInput.trim() ? "Price source saved" : "Price source cleared",
@@ -128,6 +130,19 @@ export default function FuelPriceWatchCard() {
             {refreshing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             Refresh Now
           </Button>
+        </div>
+        <div className="mt-2">
+          <Label className="mb-1.5">Region / city (optional)</Label>
+          <Input
+            value={regionInput}
+            onChange={(e) => setRegionInput(e.target.value)}
+            placeholder="e.g. Metro Manila"
+            disabled={busy || refreshing}
+            className="max-w-xs"
+          />
+          <p className="text-[11px] text-taupe mt-1">
+            Only needed if your source page lists more than one region's price — tells it which one is yours.
+          </p>
         </div>
         {watch.lastCheckedAt && (
           <p className="text-[11px] text-taupe mt-1.5">
