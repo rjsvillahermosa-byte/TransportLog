@@ -907,13 +907,20 @@
   /* ---------------- Leaflet loader (CDN with retry) ---------------- */
   function loadLeaflet(onOk, onFail) {
     if (typeof L !== "undefined") { onOk(); return; }
+    // integrity hashes pin this to the exact 1.9.4 bytes — if unpkg ever served
+    // something else under this URL, the browser refuses to load it rather
+    // than silently running whatever showed up.
     var css = document.createElement("link");
     css.rel = "stylesheet";
     css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    css.integrity = "sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H";
+    css.crossOrigin = "anonymous";
     document.head.appendChild(css);
 
     var s = document.createElement("script");
     s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    s.integrity = "sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH";
+    s.crossOrigin = "anonymous";
     s.onload = onOk;
     s.onerror = onFail;
     document.head.appendChild(s);

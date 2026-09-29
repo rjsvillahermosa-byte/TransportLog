@@ -17,10 +17,14 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { encodeBase64 } from "jsr:@std/encoding@1/base64";
 
+// Narrowed from "*" (security review, 2026-09-29): this endpoint accepts a
+// signed-in user's bearer token, so a wildcard origin let any website's JS
+// call it on a victim's behalf if it ever obtained that token another way.
 const CORS = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("APP_ORIGIN") ?? "https://fleet.flowworkssystems.com",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  Vary: "Origin",
 };
 
 const json = (body: unknown, status = 200) =>
