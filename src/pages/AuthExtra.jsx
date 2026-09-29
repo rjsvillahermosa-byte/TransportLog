@@ -16,7 +16,11 @@ export function RegisterPage() {
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   // Pre-flight client-code validation: fails fast with a clear message instead
-  // of a generic Supabase signup error after the fact.
+  // of a generic Supabase signup error after the fact. Goes through the
+  // lookup_client_code() RPC (0015) rather than selecting organizations
+  // directly — that table has no anonymous SELECT policy at all, on purpose,
+  // since a direct select would return every column (contact info, billing
+  // ID) for every org, not just the 3 this check needs.
   const checkClientCode = async (code) => {
     const c = code.trim().toUpperCase();
     if (!c) { setCodeStatus(null); return; }
@@ -24,11 +28,7 @@ export function RegisterPage() {
     try {
       const { getSupabaseClient } = await import("../lib/supabaseClient");
       const sb = getSupabaseClient();
-      const { data, error } = await sb
-        .from("organizations")
-        .select("client_code, name, plan_status")
-        .eq("client_code", c)
-        .maybeSingle();
+      const { data, error } = await sb.rpc("lookup_client_code", { p_code: c }).maybeSingle();
       if (error || !data || data.plan_status !== "active") {
         setCodeStatus({ ok: false });
       } else {
