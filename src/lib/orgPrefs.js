@@ -62,9 +62,17 @@ export async function saveOrgPrefs(patch) {
   const sb = getSupabaseClient();
   if (!sb) throw new Error("Not connected");
   // org_settings permits updates only where the caller is Admin/Super Admin —
-  // RLS scopes the row, so no org id is needed client-side.
-  const { error } = await sb.from("org_settings").update(patch);
+  // RLS scopes the row, so no org id is needed client-side. But an UPDATE
+  // that RLS scopes to zero rows succeeds silently (no error, nothing
+  // written) — .select() lets us tell the two apart and surface a real
+  // error instead of a false "saved" toast.
+  const { data, error } = await sb.from("org_settings").update(patch).select("organization_id");
   if (error) throw new Error(error.message);
+  if (!data?.length) {
+    throw new Error(
+      "Nothing was saved — your account isn't recognized as an Admin or Super Admin of an active organization."
+    );
+  }
   cache = { ...(cache || DEFAULT_PREFS), ...patch };
   listeners.forEach((l) => l(cache));
   return cache;

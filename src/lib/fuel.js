@@ -75,11 +75,22 @@ export async function loadFuelWatch(force = false) {
   return watchInflight;
 }
 
+// Postgres silently accepts an UPDATE that RLS scopes to zero rows — no
+// error, nothing written. Without .select() to see what actually changed,
+// a caller whose organization_members role/status doesn't satisfy
+// "org_settings org update" gets no feedback at all: the toast says
+// "saved" and nothing happened. Every write below checks the row count
+// and throws a real error instead.
+const NO_ROW_UPDATED =
+  "Nothing was saved — your account isn't recognized as an Admin or Super Admin of an active organization. " +
+  "Check Settings → Organizations, or ask your platform owner to check your membership.";
+
 export async function saveFuelBands(bands) {
   const sb = getSupabaseClient();
   if (!sb) throw new Error("Not connected");
-  const { error } = await sb.from("org_settings").update({ fuel_bands: bands });
+  const { data, error } = await sb.from("org_settings").update({ fuel_bands: bands }).select("organization_id");
   if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error(NO_ROW_UPDATED);
   watchCache = { ...(watchCache || defaultWatch()), bands };
   watchListeners.forEach((l) => l(watchCache));
   return watchCache;
@@ -88,10 +99,12 @@ export async function saveFuelBands(bands) {
 export async function saveFuelPriceSourceUrl(url, region) {
   const sb = getSupabaseClient();
   if (!sb) throw new Error("Not connected");
-  const { error } = await sb
+  const { data, error } = await sb
     .from("org_settings")
-    .update({ fuel_price_source_url: url || null, fuel_price_region: region || null });
+    .update({ fuel_price_source_url: url || null, fuel_price_region: region || null })
+    .select("organization_id");
   if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error(NO_ROW_UPDATED);
   watchCache = { ...(watchCache || defaultWatch()), sourceUrl: url, region: region || "" };
   watchListeners.forEach((l) => l(watchCache));
   return watchCache;
