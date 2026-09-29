@@ -22,8 +22,11 @@ begin
   ) then
     alter table public.org_settings drop constraint if exists org_settings_id_check;
     alter table public.org_settings drop constraint if exists org_settings_pkey;
-    alter table public.org_settings alter column id set default gen_random_uuid();
+    -- order matters: the default must be dropped while boolean, then the type
+    -- converted, and only then can the uuid default be set
+    alter table public.org_settings alter column id drop default;
     alter table public.org_settings alter column id type uuid using gen_random_uuid();
+    alter table public.org_settings alter column id set default gen_random_uuid();
     alter table public.org_settings add primary key (id);
   end if;
 end $$;
