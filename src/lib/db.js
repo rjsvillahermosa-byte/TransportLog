@@ -158,13 +158,45 @@ const supabaseAuth = {
   },
   async resetPasswordRequest(email) {
     const sb = getSupabaseClient();
-    const { error } = await sb.auth.resetPasswordForEmail(email);
+    // Land the emailed link on the reset page so the code/session is
+    // consumed exactly where the new-password form lives.
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
     if (error) throw new Error(error.message);
   },
   async resetPassword({ new_password }) {
     const sb = getSupabaseClient();
+    // Supabase: the emailed recovery link normally lands as a session
+    // automatically (detectSessionInUrl). If it didn't (user pasted a link
+    // whose fragment got stripped, or a bare OTP code), exchange it now.
+    const { data: sessData } = await sb.auth.getSession();
+    if (!sessData?.session) {
+      const url = new URL(window.location.href);
+      const params = new URLSearchParams(
+        url.hash.startsWith("#") ? url.hash.slice(1) : url.search
+      );
+      const code = params.get("code");
+      const token = params.get("token");
+      if (code) {
+        const { error: exchangeError } = await sb.auth.exchangeCodeForSession(code);
+        if (exchangeError) throw new Error(exchangeError.message);
+      } else if (token) {
+        const { error: verifyError } = await sb.auth.verifyOtp({
+          token,
+          type: "recovery",
+        });
+        if (verifyError) throw new Error(verifyError.message);
+      }
+    }
     const { error } = await sb.auth.updateUser({ password: new_password });
     if (error) throw new Error(error.message);
+    // Success → drop the recovery session so the user signs in fresh.
+    try {
+      await sb.auth.signOut();
+    } catch {
+      /* best-effort */
+    }
   },
   // Callers reload the page right after this, so it must finish clearing the
   // session first — an un-awaited signOut() loses the race against the reload,

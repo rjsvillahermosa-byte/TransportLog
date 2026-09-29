@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { UserPlus, KeyRound, ShieldQuestion } from "lucide-react";
 import { Button, Input, Label } from "../components/ui";
@@ -199,7 +199,10 @@ export function ForgotPasswordPage() {
 }
 
 export function ResetPasswordPage() {
-  const [form, setForm] = useState({ reset_token: "", new_password: "" });
+  // Real reset flow (Supabase): the emailed link lands the user here with a
+  // recovery session (OTP code in the URL); updateUser then swaps the
+  // password on that session. Local/offline mode still accepts a token.
+  const [form, setForm] = useState({ reset_token: "", new_password: "", confirm_password: "" });
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -207,6 +210,10 @@ export function ResetPasswordPage() {
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    if (form.new_password !== form.confirm_password) {
+      setError("Passwords do not match.");
+      return;
+    }
     try {
       await auth.resetPassword(form);
       setDone(true);
@@ -233,12 +240,16 @@ export function ResetPasswordPage() {
       ) : (
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Reset token</Label>
-            <Input required value={form.reset_token} onChange={set("reset_token")} placeholder="Paste token from email" />
+            <Label>Reset token (optional if you opened the email link)</Label>
+            <Input value={form.reset_token} onChange={set("reset_token")} placeholder="Paste token from email" />
           </div>
           <div className="space-y-2">
             <Label>New password</Label>
-            <Input type="password" required value={form.new_password} onChange={set("new_password")} placeholder="••••••••" />
+            <Input type="password" required minLength={6} value={form.new_password} onChange={set("new_password")} placeholder="••••••••" />
+          </div>
+          <div className="space-y-2">
+            <Label>Confirm new password</Label>
+            <Input type="password" required minLength={6} value={form.confirm_password} onChange={set("confirm_password")} placeholder="••••••••" />
           </div>
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">{error}</p>
