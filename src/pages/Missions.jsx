@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Briefcase, ClipboardList, LogOut, Trash2, Clock, MapPin, Calendar, Car } from "lucide-react";
+import { Briefcase, Building2, ClipboardList, LogOut, Trash2, Clock, MapPin, Calendar, Car } from "lucide-react";
 import dayjs from "../lib/day";
 import { api, auth, isOnline } from "../lib/db";
+import { getSupabaseClient } from "../lib/supabaseClient";
 import { AlertTriangle } from "lucide-react";
 import { formatTime } from "../lib/voice";
 import { cn, STATUS_STYLES, BOOKING_ICONS } from "../lib/utils";
@@ -106,6 +107,32 @@ function MissionCard({ request: r, onDelete }) {
 }
 
 export default function Missions({ user }) {
+  // Client-specific branding: the signed-in member's company name, read from
+  // organization_members -> organizations. RLS only ever returns the caller's
+  // own memberships, so this can never leak another company's identity.
+  const [orgName, setOrgName] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const sb = getSupabaseClient();
+        if (!sb) return;
+        const { data } = await sb
+          .from("organization_members")
+          .select("status, organizations(name)")
+          .eq("user_id", user?.id);
+        if (!alive || !data?.length) return;
+        const active = data.find((m) => m.status === "Active") ?? data[0];
+        if (active?.organizations?.name) setOrgName(active.organizations.name);
+      } catch {
+        /* branding only — never block the dashboard */
+        /* eslint-disable-next-line no-empty */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [user?.id]);
   const [requests, setRequests] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -201,7 +228,14 @@ export default function Missions({ user }) {
           <h1 className="text-2xl font-heading font-bold text-cocoa">
             Welcome, {user?.full_name?.split(" ")[0] || "Driver"}
           </h1>
-          <p className="text-sm text-taupe mt-1">Your transport missions dashboard</p>
+          {orgName ? (
+            <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand bg-mint/50 border border-brand/20 rounded-full px-3 py-0.5 mt-2">
+              <Building2 className="w-3.5 h-3.5" />
+              {orgName} · Mission Dashboard
+            </p>
+          ) : (
+            <p className="text-sm text-taupe mt-1">Your transport missions dashboard</p>
+          )}
         </div>
         <Button
           variant="outline"

@@ -7,6 +7,70 @@ import { BOOKING_TYPES, DEPARTMENTS } from "../lib/utils";
 import { Button, Input, Label, Select, Textarea, Spinner } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { cn } from "../lib/utils";
+import { useOrgPrefs, formatTimePref } from "../lib/orgPrefs";
+
+const OTHERS = "__others__";
+
+// Location field driven by the org's configured presets (Settings →
+// Client Booking Preferences). "Others" frees the member to type any custom
+// place; the chosen value lands in the same field either way.
+function LocationField({ label, placeholder, kind, value, onChange, prefs, required }) {
+  const [customMode, setCustomMode] = useState(false);
+  const presets = prefs.location_presets.filter(
+    (l) => !l.kind || l.kind === "both" || l.kind === kind
+  );
+  const isPreset = presets.some((l) => l.name === value);
+  const showCustom = customMode || (value && !isPreset);
+  return (
+    <div className="space-y-2">
+      <Label>{label}{required ? " *" : ""}</Label>
+      {presets.length === 0 && !showCustom ? (
+        <Input value={value} onChange={onChange} placeholder={placeholder} />
+      ) : showCustom ? (
+        <div className="flex gap-2">
+          <Input
+            value={value}
+            onChange={onChange}
+            placeholder="Type the exact location…"
+            autoFocus
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="flex-none"
+            onClick={() => {
+              setCustomMode(false);
+              onChange({ target: { value: "" } });
+            }}
+          >
+            Lists
+          </Button>
+        </div>
+      ) : (
+        <Select
+          value={value}
+          onChange={(e) => {
+            if (e.target.value === OTHERS) {
+              setCustomMode(true);
+              onChange({ target: { value: "" } });
+            } else {
+              onChange(e);
+            }
+          }}
+        >
+          <option value="" disabled>
+            Select {label.replace(/ \*$/, "").toLowerCase()}…
+          </option>
+          {presets.map((l) => (
+            <option key={l.name} value={l.name}>{l.name}</option>
+          ))}
+          <option value={OTHERS}>Others — type custom details</option>
+        </Select>
+      )}
+    </div>
+  );
+}
 
 const emptyForm = {
   guest_name: "",
@@ -27,6 +91,7 @@ const emptyForm = {
 };
 
 export default function NewBooking({ user }) {
+  const prefs = useOrgPrefs();
   const navigate = useNavigate();
   const toast = useToast();
   const [mode, setMode] = useState("guest"); // "guest" | "errand"
@@ -241,22 +306,23 @@ export default function NewBooking({ user }) {
                 </Select>
               </div>
             )}
-            <div className="space-y-2">
-              <Label>Pickup Location</Label>
-              <Input
-                value={form.pickup_location}
-                onChange={set("pickup_location")}
-                placeholder="Hotel Lobby"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{mode === "errand" ? "Destination *" : "Destination"}</Label>
-              <Input
-                value={form.destination}
-                onChange={set("destination")}
-                placeholder={mode === "errand" ? "e.g. Supplier warehouse — Pasay" : "Airport Terminal 3"}
-              />
-            </div>
+            <LocationField
+              label="Pickup Location"
+              kind="pickup"
+              value={form.pickup_location}
+              onChange={set("pickup_location")}
+              prefs={prefs}
+              placeholder="Hotel Lobby"
+            />
+            <LocationField
+              label={mode === "errand" ? "Destination" : "Destination"}
+              required={mode === "errand"}
+              kind="dropoff"
+              value={form.destination}
+              onChange={set("destination")}
+              prefs={prefs}
+              placeholder={mode === "errand" ? "e.g. Supplier warehouse — Pasay" : "Airport Terminal 3"}
+            />
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Date *</Label>
@@ -268,12 +334,18 @@ export default function NewBooking({ user }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Time</Label>
+                <Label>Time ({prefs.time_format === "12h" ? "12-hour" : "24-hour"})</Label>
                 <Input
                   type="time"
                   value={form.schedule_time}
                   onChange={set("schedule_time")}
+                  {...(prefs.time_format === "12h" ? { "data-format": "12h" } : {})}
                 />
+                {form.schedule_time && prefs.time_format === "24h" && (
+                  <p className="text-[11px] text-taupe">
+                    Scheduled for {formatTimePref(form.schedule_time, "24h")} (24-hour standard)
+                  </p>
+                )}
               </div>
             </div>
           </div>

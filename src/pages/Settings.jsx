@@ -34,6 +34,9 @@ import {
 import { useEffect } from "react";
 import { Button, Input, Label, Modal, Select, Spinner } from "../components/ui";
 import { useToast } from "../components/Layout";
+import ClientPrefsCard from "./ClientPrefsCard";
+import BulkEnrollCard from "./BulkEnrollCard";
+import { useOrgPrefs, roleLabel } from "../lib/orgPrefs";
 import { cn } from "../lib/utils";
 import {
   isVoiceEnabled as getVoiceOn,
@@ -611,6 +614,7 @@ export default function Settings({ user }) {
   };
   const [users, setUsers] = useState([]);
   const [userModal, setUserModal] = useState(null); // {initial?}
+  const prefs = useOrgPrefs();
 
   const refreshUsers = () => {
     Promise.resolve(userAdmin.list())
@@ -794,6 +798,9 @@ export default function Settings({ user }) {
 
       {user.role === "Super Admin" && <BrandingCard />}
 
+      {/* Client booking preferences — locations, time standard, role titles */}
+      <ClientPrefsCard />
+
       {/* User accounts — quick enrollment, same flow as vehicle registration */}
       <div className="bg-white rounded-3xl shadow-card p-5 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-1">
@@ -824,13 +831,13 @@ export default function Settings({ user }) {
               size="sm"
               variant="primary"
               onClick={() => setUserModal({})}
-              disabled
-              title="In Supabase mode, invite users from the Supabase Dashboard → Authentication"
             >
               <UserPlus className="w-3.5 h-3.5" /> Add User
             </Button>
           </div>
         </div>
+
+        <BulkEnrollCard onEnrolled={refreshUsers} />
         <div className="mt-4 space-y-2">
           {users.map((u) => (
             <div
@@ -860,7 +867,7 @@ export default function Settings({ user }) {
                       : "bg-mint/60 text-taupe border-sand"
                   )}
                 >
-                  {u.role}
+                  {roleLabel(u.role, prefs.role_terms)}
                 </span>
                 <span
                   className={cn(
