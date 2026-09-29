@@ -128,6 +128,8 @@ create policy "api_keys admins manage" on public.api_keys
   );
 
 -- lookup helper for the future Edge Function auth: match a raw key
+-- (digest() comes from pgcrypto/extensions; encode() is core pg_catalog —
+--  qualifying it as extensions.encode fails with 42883)
 create or replace function public.api_key_lookup(p_raw_key text)
 returns table (organization_id uuid, scopes text)
 language sql stable security definer set search_path = public, extensions
@@ -135,7 +137,7 @@ as $$
   select organization_id, scopes
   from public.api_keys
   where is_active
-    and key_hash = extensions.encode(extensions.digest(p_raw_key, 'sha256'), 'hex')
+    and key_hash = encode(extensions.digest(p_raw_key, 'sha256'), 'hex')
   limit 1
 $$;
 
@@ -151,7 +153,7 @@ $$;
 --   insert into public.api_keys (organization_id, name, key_prefix, key_hash, scopes)
 --   values ('fb4ee6e1-7ef8-40d9-8b03-590efcb28be7', 'PMS integration',
 --           left('<raw key>', 12),
---           extensions.encode(extensions.digest('<raw key>', 'sha256'), 'hex'),
+--           encode(extensions.digest('<raw key>', 'sha256'), 'hex'),
 --           'read');
 --   select * from public.api_key_lookup('<raw key>');  -- returns the org
 -- ---------------------------------------------------------------------------
