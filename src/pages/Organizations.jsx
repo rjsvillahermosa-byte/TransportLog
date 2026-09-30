@@ -191,6 +191,25 @@ export default function Organizations() {
     if (!linkId || !members) return;
     setLinkBusy(true);
     const sb = getSupabaseClient();
+    // Seat-cap enforcement: manual links follow the same paywall as enroll.
+    const { data: orgRow } = await sb
+      .from("organizations")
+      .select("max_users, name")
+      .eq("id", members.org.id)
+      .single();
+    const { count } = await sb
+      .from("organization_members")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", members.org.id)
+      .eq("status", "Active");
+    if (orgRow && (count ?? 0) >= orgRow.max_users) {
+      setLinkBusy(false);
+      toast({
+        title: "Seat limit reached",
+        description: `${orgRow.name} is at ${count}/${orgRow.max_users} active seats. Raise the cap on the Clients page to add more.`,
+      });
+      return;
+    }
     const { error: err } = await sb.from("organization_members").insert({
       organization_id: members.org.id,
       user_id: linkId,

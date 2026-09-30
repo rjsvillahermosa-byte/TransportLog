@@ -90,6 +90,19 @@ export default function Onboarding() {
   const linkMember = async () => {
     if (!linkId || !created) return;
     const sb = getSupabaseClient();
+    // Seat-cap enforcement on manual links too.
+    const { count } = await sb
+      .from("organization_members")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", created.id)
+      .eq("status", "Active");
+    if ((count ?? 0) >= (Number(created.max_users) || 5)) {
+      toast({
+        title: "Seat limit reached",
+        description: `${created.name} is at ${count}/${created.max_users} active seats. Raise the cap to add more.`,
+      });
+      return;
+    }
     const { error: err } = await sb.from("organization_members").insert({
       organization_id: created.id,
       user_id: linkId,
