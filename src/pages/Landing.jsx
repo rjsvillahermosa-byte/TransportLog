@@ -186,6 +186,7 @@ export default function Landing() {
             <a href="#how" className="hover:text-brand">How it works</a>
             <a href="#fraud" className="hover:text-brand">Fuel integrity</a>
             <a href="#roles" className="hover:text-brand">Roles</a>
+            <Link to="/pricing" className="hover:text-brand">Pricing</Link>
             <a href="/savings-finder.html" className="hover:text-brand">Savings calculator</a>
           </nav>
           <div className="flex items-center gap-2">
@@ -204,7 +205,7 @@ export default function Landing() {
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-12 md:grid-cols-2 md:pt-20">
           <div>
             <p className="mb-4 inline-flex items-center rounded-full bg-mint px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand">
-              Fleet & Transport Management
+              Fleet &amp; Transport Management System
             </p>
             <h1 className="font-heading text-4xl font-extrabold leading-tight text-cocoa sm:text-5xl">
               Every trip logged. Every kilometer verified.
@@ -362,7 +363,7 @@ export default function Landing() {
           <div className="flex items-center gap-2">
             <img src="/logo.svg" alt="" className="h-6 w-6 rounded-md" />
             <span className="font-medium text-mocha">FleetFlow</span>
-            <span>— intelligent hotel transport management</span>
+            <span>— intelligent fleet & transport management system</span>
           </div>
           <div className="flex gap-5">
             <Link to="/login" className="hover:text-brand">Sign in</Link>

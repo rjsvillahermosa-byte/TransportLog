@@ -27,6 +27,7 @@ import Subscriptions from "./pages/Subscriptions";
 import MasterPermissions from "./pages/MasterPermissions";
 import RandDLab from "./pages/RandDLab";
 import Landing from "./pages/Landing";
+import Pricing from "./pages/Pricing";
 import { LoginPage } from "./pages/Auth";
 import { RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./pages/AuthExtra";
 import { useAccessMatrix } from "./lib/access";
@@ -61,6 +62,8 @@ function Shell() {
   if (booting) return null;
 
   if (isLanding) return <Landing />;
+  // Public pricing page — visible logged-out (marketing surface) and in-app.
+  if (location.pathname === "/pricing") return <Pricing />;
   if (!user && !isAuthPath) return <Navigate to="/login" replace />;
   if (user && isAuthPath) return <Navigate to="/" replace />;
 
