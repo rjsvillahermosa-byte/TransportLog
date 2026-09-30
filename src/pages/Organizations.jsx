@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Building2, Plus, RefreshCw, ShieldCheck, Users } from "lucide-react";
+import { Building2, Plus, RefreshCw, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import { Button, Input, Label, Modal, Select } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { getSupabaseClient } from "../lib/supabaseClient";
@@ -32,6 +32,10 @@ export default function Organizations() {
   const [orgs, setOrgs] = useState([]);
   const [memberCounts, setMemberCounts] = useState({}); // org_id -> count
   const [members, setMembers] = useState(null); // { org, rows } | null
+  const [profileMap, setProfileMap] = useState({}); // user_id -> {full_name, email}
+  const [linkId, setLinkId] = useState(""); // user to link into this org
+  const [linkRole, setLinkRole] = useState("Staff");
+  const [linkBusy, setLinkBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState(BLANK_FORM);
@@ -113,11 +117,63 @@ export default function Organizations() {
 
   const openMembers = async (org) => {
     const sb = getSupabaseClient();
-    const { data } = await sb
-      .from("organization_members")
-      .select("id, user_id, role, is_org_owner, status, joined_at")
-      .eq("organization_id", org.id);
+    const [{ data }, { data: profs }] = await Promise.all([
+      sb
+        .from("organization_members")
+        .select("id, user_id, role, is_org_owner, status, joined_at")
+        .eq("organization_id", org.id),
+      // Platform team can read every profile — names/emails for the member rows.
+      sb.from("profiles").select("id, full_name, email"),
+    ]);
+    const pm = {};
+    (profs || []).forEach((p) => { pm[p.id] = p; });
+    setProfileMap(pm);
+    setLinkId("");
     setMembers({ org, rows: data || [] });
+  };
+
+  const nameOf = (userId) => {
+    const p = profileMap[userId];
+    return p ? p.full_name || p.email : `${userId.slice(0, 8)}… (no profile)`;
+  };
+  const emailOf = (userId) => profileMap[userId]?.email || "";
+
+  const linkUser = async () => {
+    if (!linkId || !members) return;
+    setLinkBusy(true);
+    const sb = getSupabaseClient();
+    const { error: err } = await sb.from("organization_members").insert({
+      organization_id: members.org.id,
+      user_id: linkId,
+      role: linkRole,
+      is_org_owner: false,
+    });
+    setLinkBusy(false);
+    if (err) {
+      toast({ title: "Link failed", description: err.message });
+      return;
+    }
+    toast({
+      title: "User linked",
+      description: `${nameOf(linkId)} is now ${linkRole} in ${members.org.name}.`,
+    });
+    setLinkId("");
+    setLinkRole("Staff");
+    openMembers(members.org);
+    load();
+  };
+
+  const removeMember = async (r) => {
+    if (!window.confirm(`Remove ${nameOf(r.user_id)} from ${members.org.name}? Their account stays — only the company link is cut (you can re-link them to another company).`)) return;
+    const sb = getSupabaseClient();
+    const { error: err } = await sb.from("organization_members").delete().eq("id", r.id);
+    if (err) {
+      toast({ title: "Remove failed", description: err.message });
+      return;
+    }
+    toast({ title: "Membership removed", description: `${nameOf(r.user_id)} no longer belongs to ${members.org.name}.` });
+    openMembers(members.org);
+    load();
   };
 
   const setMemberField = async (memberId, patch) => {
@@ -325,7 +381,7 @@ export default function Organizations() {
             </p>
             {members.rows.length === 0 ? (
               <p className="rounded-xl bg-cream px-3 py-4 text-center text-sm text-mocha">
-                No members yet — the client's first signup will claim this code.
+                No members yet — the client's first signup will claim this code, or link an existing user below.
               </p>
             ) : (
               <div className="divide-y divide-sand/60 rounded-xl border border-sand">
@@ -333,10 +389,10 @@ export default function Organizations() {
                   <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-cocoa">
-                        {r.user_id.slice(0, 8)}… {r.is_org_owner && <span className="ml-1 rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent-dark">OWNER</span>}
+                        {nameOf(r.user_id)} {r.is_org_owner && <span className="ml-1 rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent-dark">OWNER</span>}
                       </p>
-                      <p className="text-xs text-taupe">
-                        joined {new Date(r.joined_at).toLocaleDateString()}
+                      <p className="truncate text-xs text-taupe">
+                        {emailOf(r.user_id)} · joined {new Date(r.joined_at).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -361,11 +417,59 @@ export default function Organizations() {
                       >
                         {r.status}
                       </button>
+                      {!r.is_org_owner && (
+                        <button
+                          onClick={() => removeMember(r)}
+                          title="Remove from this company (account is kept)"
+                          className="rounded-lg p-1.5 text-taupe hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
             )}
+
+            {/* Link an existing user — for accounts that missed the client
+                code at registration, or when moving staff between companies. */}
+            <div className="rounded-xl border border-dashed border-sand bg-cream/50 p-3">
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-cocoa">
+                <UserPlus className="h-3.5 w-3.5" /> Link an existing user to {members.org.name}
+              </p>
+              <p className="mb-2 text-[11px] text-taupe">
+                For accounts created without a client code. To MOVE someone from another
+                company: remove them there first, then link them here.
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Select value={linkId} onChange={(e) => setLinkId(e.target.value)} className="sm:flex-1">
+                  <option value="">Select user…</option>
+                  {Object.entries(profileMap)
+                    .filter(([uid]) => !members.rows.some((r) => r.user_id === uid))
+                    .sort((a, b) => (a[1].full_name || "").localeCompare(b[1].full_name || ""))
+                    .map(([uid, p]) => (
+                      <option key={uid} value={uid}>
+                        {p.full_name || p.email} ({p.email})
+                      </option>
+                    ))}
+                </Select>
+                <Select value={linkRole} onChange={(e) => setLinkRole(e.target.value)} className="sm:w-36 flex-none">
+                  {["Staff", "Driver", "Supervisor", "Admin", "Super Admin"].map((role) => (
+                    <option key={role} value={role}>{role}</option>
+                  ))}
+                </Select>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="flex-none"
+                  disabled={!linkId || linkBusy}
+                  onClick={linkUser}
+                >
+                  <UserPlus className="h-3.5 w-3.5" /> Link
+                </Button>
+              </div>
+            </div>}
           </div>
         )}
       </Modal>
