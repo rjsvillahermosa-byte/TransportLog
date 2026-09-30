@@ -143,6 +143,8 @@ export default function Pricing() {
           <nav className="hidden items-center gap-7 text-sm font-medium text-mocha md:flex">
             <Link to="/" className="hover:text-brand">Home</Link>
             <Link to="/pricing" className="font-semibold text-brand">Pricing</Link>
+            <Link to="/faqs" className="hover:text-brand">FAQs</Link>
+            <Link to="/reviews" className="hover:text-brand">Reviews</Link>
           </nav>
           <div className="flex items-center gap-2">
             <Link to="/login" className="px-3 text-xs font-bold uppercase tracking-wide text-cocoa hover:text-brand">
@@ -295,7 +297,10 @@ export default function Pricing() {
       </main>
 
       <footer className="border-t border-sand/60 py-8 text-center text-xs text-taupe">
-        FleetFlow — intelligent fleet &amp; transport management system · fleet.flowworkssystems.com
+        FleetFlow — intelligent fleet &amp; transport management system ·{" "}
+        <Link to="/privacy" className="hover:text-brand">Privacy</Link> ·{" "}
+        <Link to="/faqs" className="hover:text-brand">FAQs</Link> ·{" "}
+        <Link to="/reviews" className="hover:text-brand">Reviews</Link>
       </footer>
     </div>
   );

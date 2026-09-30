@@ -350,6 +350,10 @@ export default function Landing() {
             <span>{c.footer_tagline}</span>
           </div>
           <div className="flex gap-5">
+            <Link to="/pricing" className="hover:text-brand">Pricing</Link>
+            <Link to="/faqs" className="hover:text-brand">FAQs</Link>
+            <Link to="/reviews" className="hover:text-brand">Reviews</Link>
+            <Link to="/privacy" className="hover:text-brand">Privacy</Link>
             <Link to="/login" className="hover:text-brand">Sign in</Link>
             <Link to="/register" className="hover:text-brand">Register</Link>
           </div>

@@ -27,6 +27,34 @@ create policy "site_content owner write" on public.site_content
   for all using (public.can_platform_write())
   with check (public.can_platform_write());
 
+-- Subscriber reviews: anyone may submit (moderated queue); only approved
+-- rows render publicly. Platform team moderates via the API or SQL.
+create table if not exists public.site_reviews (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null,
+  org        text,
+  role       text,
+  rating     int  not null check (rating between 1 and 5),
+  text       text not null,
+  approved   boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+alter table public.site_reviews enable row level security;
+
+drop policy if exists "site_reviews approved read" on public.site_reviews;
+create policy "site_reviews approved read" on public.site_reviews
+  for select using (approved = true);
+
+drop policy if exists "site_reviews submit" on public.site_reviews;
+create policy "site_reviews submit" on public.site_reviews
+  for insert with check (true);
+
+drop policy if exists "site_reviews moderate" on public.site_reviews;
+create policy "site_reviews moderate" on public.site_reviews
+  for all using (public.can_platform_write())
+  with check (public.can_platform_write());
+
 -- ---------------------------------------------------------------------------
 -- VERIFY:
 --   select key, jsonb_object_keys(value) from site_content;  -- after first save

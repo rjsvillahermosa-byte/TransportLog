@@ -29,6 +29,9 @@ import RandDLab from "./pages/RandDLab";
 import SiteEditor from "./pages/SiteEditor";
 import Landing from "./pages/Landing";
 import Pricing from "./pages/Pricing";
+import Privacy from "./pages/Privacy";
+import Faqs from "./pages/Faqs";
+import Reviews from "./pages/Reviews";
 import VehicleScan from "./pages/VehicleScan";
 import { LoginPage } from "./pages/Auth";
 import { RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./pages/AuthExtra";
@@ -66,6 +69,9 @@ function Shell() {
   if (isLanding) return <Landing />;
   // Public pricing page — visible logged-out (marketing surface) and in-app.
   if (location.pathname === "/pricing") return <Pricing />;
+  if (location.pathname === "/privacy") return <Privacy />;
+  if (location.pathname === "/faqs") return <Faqs />;
+  if (location.pathname === "/reviews") return <Reviews />;
   // Vehicle QR landing (/v/<token>): requires login (the page redirects to
   // /login itself and returns post-login), but must be reachable BEFORE the
   // generic auth redirect so the token survives.
