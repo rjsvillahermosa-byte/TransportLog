@@ -1,17 +1,26 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { UserPlus, KeyRound, ShieldQuestion } from "lucide-react";
 import { Button, Input, Label } from "../components/ui";
 import { auth } from "../lib/db";
 import { AuthLayout } from "./Auth";
 
 export function RegisterPage() {
-  const [form, setForm] = useState({ full_name: "", email: "", password: "", client_code: "" });
+  const [form, setForm] = useState((init) => ({ ...init, client_code: (new URLSearchParams(window.location.search).get("code") || "").trim().toUpperCase() }));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [codeChecking, setCodeChecking] = useState(false);
   const [codeStatus, setCodeStatus] = useState(null); // {ok, name} | {ok:false}
+
+  // Welcome-kit links (/register?code=XXXX from Client Onboarding) prefill and
+  // auto-validate the client code so the client team just adds name + email.
+  const [params] = useSearchParams();
+  const presetCode = (params.get("code") || "").trim().toUpperCase();
+  useEffect(() => {
+    if (presetCode) checkClientCode(presetCode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 

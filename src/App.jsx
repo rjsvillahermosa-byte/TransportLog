@@ -20,6 +20,9 @@ import Settings, { AdminOnlyNotice } from "./pages/Settings";
 import Reports from "./pages/Reports";
 import Organizations from "./pages/Organizations";
 import Console from "./pages/Console";
+import AuditLogs from "./pages/AuditLogs";
+import Onboarding from "./pages/Onboarding";
+import SystemUsage from "./pages/SystemUsage";
 import Landing from "./pages/Landing";
 import { LoginPage } from "./pages/Auth";
 import { RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./pages/AuthExtra";
@@ -85,6 +88,21 @@ function Shell() {
           <AdminOnlyNotice
             title="Super Admin only"
             message="The Console maps the entire platform and is limited to Super Admin accounts."
+          />
+        )
+      ) : location.pathname === "/audit-logs" || location.pathname === "/onboarding" || location.pathname === "/system-usage" ? (
+        user.role === "Super Admin" ? (
+          location.pathname === "/audit-logs" ? (
+            <AuditLogs />
+          ) : location.pathname === "/onboarding" ? (
+            <Onboarding />
+          ) : (
+            <SystemUsage />
+          )
+        ) : (
+          <AdminOnlyNotice
+            title="Super Admin only"
+            message="This console page is limited to Super Admin accounts."
           />
         )
       ) : (

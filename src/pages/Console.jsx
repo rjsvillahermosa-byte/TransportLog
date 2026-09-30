@@ -53,6 +53,9 @@ const SECTIONS = [
     label: "Platform",
     items: [
       { label: "Clients", path: "/organizations", icon: Building2, desc: "Client codes, plans, members & status" },
+      { label: "Onboarding", path: "/onboarding", icon: Users, desc: "Guided tenant creation with welcome kits" },
+      { label: "Audit Logs", path: "/audit-logs", icon: ScrollText, desc: "Who changed what, across every tenant" },
+      { label: "System Usage", path: "/system-usage", icon: Activity, desc: "Seats, vehicles & activity per organization" },
       { label: "Settings", path: "/settings", icon: Palette, desc: "Branding, fuel bands, users & data tools" },
     ],
   },
@@ -61,9 +64,6 @@ const SECTIONS = [
     soon: true,
     items: [
       { label: "Subscriptions", icon: CreditCard, desc: "Plan billing, invoices & upgrade flow per client" },
-      { label: "Client Onboarding", icon: Users, desc: "Guided tenant creation with welcome kits" },
-      { label: "Audit Logs", icon: ScrollText, desc: "Who changed what, across every tenant" },
-      { label: "System Usage", icon: Activity, desc: "Storage, rows & activity per organization" },
       { label: "Master Permissions", icon: UserCog, desc: "Role matrix editor beyond the fixed roles" },
       { label: "R&D Lab", icon: FlaskConical, desc: "Feature flags & experimental rollouts" },
     ],
