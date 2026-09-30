@@ -7,7 +7,7 @@ import { getSupabaseClient } from "../lib/supabaseClient";
 import { AlertTriangle } from "lucide-react";
 import { formatTime } from "../lib/voice";
 import { cn, STATUS_STYLES, BOOKING_ICONS } from "../lib/utils";
-import { Button, EmptyState, Spinner } from "../components/ui";
+import { Button, EmptyState, Spinner, Select } from "../components/ui";
 import { useToast } from "../components/Layout";
 
 const FILTERS = [
@@ -17,8 +17,9 @@ const FILTERS = [
   { value: "all", label: "All" },
 ];
 
-function MissionCard({ request: r, onDelete }) {
+function MissionCard({ request: r, vehicles, onDelete, onChanged }) {
   const [busy, setBusy] = useState(false);
+  const [assigningVehicle, setAssigningVehicle] = useState(false);
   const del = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -29,6 +30,24 @@ function MissionCard({ request: r, onDelete }) {
       onDelete?.();
     } catch {
       alert("Failed to delete booking");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const assignVehicle = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const plate = e.target.value;
+    if (!plate) return;
+    const v = vehicles.find((x) => x.plate_number === plate);
+    setBusy(true);
+    try {
+      await api.entities.TransportRequest.update(r.id, { vehicle_plate: plate, vehicle_id: v?.id || null });
+      onChanged?.();
+    } catch {
+      alert("Failed to assign vehicle");
+      setAssigningVehicle(false);
     } finally {
       setBusy(false);
     }
@@ -95,9 +114,43 @@ function MissionCard({ request: r, onDelete }) {
           </div>
           <div className="flex items-start gap-1.5">
             <Car className="w-3.5 h-3.5 text-taupe mt-0.5 flex-none" />
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-taupe">Vehicle</p>
-              <p className="text-mocha truncate">{r.vehicle_plate || "Unassigned"}</p>
+              {r.vehicle_plate ? (
+                <p className="text-mocha truncate">{r.vehicle_plate}</p>
+              ) : assigningVehicle ? (
+                <Select
+                  autoFocus
+                  disabled={busy}
+                  defaultValue=""
+                  onChange={assignVehicle}
+                  onClick={(e) => e.stopPropagation()}
+                  onBlur={() => setAssigningVehicle(false)}
+                  className="h-6 py-0 text-xs"
+                >
+                  <option value="" disabled>
+                    {busy ? "Assigning…" : "Pick a vehicle…"}
+                  </option>
+                  {vehicles
+                    .filter((v) => v.status === "available")
+                    .map((v) => (
+                      <option key={v.id} value={v.plate_number}>
+                        {v.plate_number} — {v.model || v.unit_name || ""}
+                      </option>
+                    ))}
+                </Select>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setAssigningVehicle(true);
+                  }}
+                  className="text-orange font-medium hover:underline"
+                >
+                  Assign vehicle
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -134,6 +187,7 @@ export default function Missions({ user }) {
     };
   }, [user?.id]);
   const [requests, setRequests] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("today");
@@ -145,8 +199,12 @@ export default function Missions({ user }) {
   const load = async () => {
     setLoading(true);
     try {
-      const rows = await api.entities.TransportRequest.list("-schedule_date", 100);
+      const [rows, fleet] = await Promise.all([
+        api.entities.TransportRequest.list("-schedule_date", 100),
+        api.entities.Vehicle.list(),
+      ]);
       setRequests(rows);
+      setVehicles(fleet);
     } finally {
       setLoading(false);
     }
@@ -303,7 +361,7 @@ export default function Missions({ user }) {
       ) : (
         <div className="space-y-3">
           {filtered.map((r) => (
-            <MissionCard key={r.id} request={r} onDelete={load} />
+            <MissionCard key={r.id} request={r} vehicles={vehicles} onDelete={load} onChanged={load} />
           ))}
         </div>
       )}

@@ -301,10 +301,18 @@ const supabaseUserAdminAsync = {
     if (error) throw new Error(error.message);
     return data;
   },
-  async remove(id, currentEmail, actorRole = "Staff", wipeData = false) {
-    // Auth users can't be deleted with the anon key — disable instead.
+  async remove(id, currentEmail, actorRole = "Staff", isDemo = false) {
     const sb = getSupabaseClient();
-    if (wipeData) await wipeCreatedDataSb(id);
+    // Demo accounts get a real, permanent delete (admin-delete-demo-user
+    // verifies server-side, independently, that the target really is a
+    // demo account before it touches anything — this client-side check is
+    // just for a fast, friendly error, not the actual safety boundary).
+    if (isDemo) {
+      await callEdgeFunction("admin-delete-demo-user", { id });
+      return "deleted";
+    }
+    // Everyone else: auth users can't be hard-deleted with the anon key —
+    // disable instead. The account stays on the list, marked Disabled.
     const { data: prof } = await sb.from("profiles").select("role, email").eq("id", id).single();
     if (prof?.role === "Super Admin") throw new Error("The Super Admin account cannot be deleted.");
     if (prof?.role === "Admin" && actorRole !== "Super Admin")
@@ -679,14 +687,6 @@ async function wipeCreatedDataLocal(userId) {
     write(k, read(k).filter((r) => r.created_by !== userId));
   }
 }
-async function wipeCreatedDataSb(userId) {
-  const sb = getSupabaseClient();
-  for (const t of ["transport_requests", "mileage_logs", "fuel_logs", "incidents", "service_logs"]) {
-    const { error } = await sb.from(t).delete().eq("created_by", userId);
-    if (error) throw new Error(error.message);
-  }
-}
-
 const localUserAdmin = {
   list() {
     return read(USERS_COL);

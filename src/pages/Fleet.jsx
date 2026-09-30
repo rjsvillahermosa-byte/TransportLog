@@ -45,6 +45,7 @@ import {
 import { DatePicker } from "../components/DatePicker";
 import { getSupabaseClient } from "../lib/supabaseClient";
 import { useToast } from "../components/Layout";
+import { useOrgPrefs } from "../lib/orgPrefs";
 
 // ---------------------------------------------------------------------------
 // Modals
@@ -858,6 +859,7 @@ function AssetRecordModal({ open, onClose, vehicle, services }) {
   const totalSpend = mine.reduce((s, x) => s + (Number(x.cost) || 0), 0);
   const [photo, setPhoto] = useState(null);
   const [odoAudit, setOdoAudit] = useState([]);
+  const { currency_symbol: sym } = useOrgPrefs();
 
   // Baseline-ODO audit trail (0011) — who changed it, from what, to what.
   useEffect(() => {
@@ -940,7 +942,7 @@ function AssetRecordModal({ open, onClose, vehicle, services }) {
         )}
         <div className="col-span-2 border-t border-sand/70 pt-2">
           <p className="text-xs text-taupe">Total recorded service spend</p>
-          <p className="text-cocoa font-bold">₱{totalSpend.toLocaleString()} · {mine.length} service record{mine.length === 1 ? "" : "s"}</p>
+          <p className="text-cocoa font-bold">{sym}{totalSpend.toLocaleString()} · {mine.length} service record{mine.length === 1 ? "" : "s"}</p>
         </div>
       </div>
 
@@ -967,7 +969,7 @@ function AssetRecordModal({ open, onClose, vehicle, services }) {
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  {s.cost ? <p className="text-sm font-bold text-cocoa">₱{Number(s.cost).toLocaleString()}</p> : null}
+                  {s.cost ? <p className="text-sm font-bold text-cocoa">{sym}{Number(s.cost).toLocaleString()}</p> : null}
                   <span
                     className={cn(
                       "text-[10px] font-medium px-1.5 py-0.5 rounded-full border",
@@ -1046,6 +1048,7 @@ function RenewalRow({ icon: Icon, title, entity, detail, sub, status, progress, 
 // ---------------------------------------------------------------------------
 export default function Fleet({ user }) {
   const toast = useToast();
+  const { currency_symbol: sym } = useOrgPrefs();
   const [tab, setTab] = useState("drivers");
   const [drivers, setDrivers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -1447,7 +1450,7 @@ export default function Fleet({ user }) {
                     <p className="text-xs text-taupe mt-0.5">
                       {dayjs(s.service_date).format("MMM D, YYYY")} ·{" "}
                       {s.odometer_at_service ? `${Number(s.odometer_at_service).toLocaleString()} km` : "no ODO"}
-                      {s.cost ? ` · ₱${Number(s.cost).toLocaleString()}` : ""}
+                      {s.cost ? ` · ${sym}${Number(s.cost).toLocaleString()}` : ""}
                       {s.service_provider ? ` · ${s.service_provider}` : ""}
                     </p>
                     {s.next_service_km ? (

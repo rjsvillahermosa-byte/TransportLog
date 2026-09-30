@@ -186,6 +186,7 @@ export default function Landing() {
             <a href="#how" className="hover:text-brand">How it works</a>
             <a href="#fraud" className="hover:text-brand">Fuel integrity</a>
             <a href="#roles" className="hover:text-brand">Roles</a>
+            <a href="/savings-finder.html" className="hover:text-brand">Savings calculator</a>
           </nav>
           <div className="flex items-center gap-2">
             <Link to="/login" className="px-3 text-xs font-bold uppercase tracking-wide text-cocoa hover:text-brand">

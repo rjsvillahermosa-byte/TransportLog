@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MapPin, Clock, Tags, Plus, Trash2, Loader2 } from "lucide-react";
 import { Button, Input, Label, Select } from "../components/ui";
 import { useToast } from "../components/Layout";
@@ -22,13 +22,25 @@ export default function ClientPrefsCard() {
   const [busy, setBusy] = useState(false);
   const [locName, setLocName] = useState("");
   const [locKind, setLocKind] = useState("both");
+  // Role-terms inputs used to persist(...) on every keystroke: a network
+  // round trip per character, and the field disabled itself (busy) for
+  // the duration of each one — the field could only ever accept one
+  // letter before locking up until that save returned. Local state here
+  // makes typing instant; the actual save is debounced below.
+  const [localTerms, setLocalTerms] = useState({});
+  const localTermsRef = useRef({});
+  const debounceRef = useRef(null);
 
   useEffect(() => {
     loadOrgPrefs(true).then((p) => {
       setPrefs(p);
+      setLocalTerms(p.role_terms);
+      localTermsRef.current = p.role_terms;
       setLoaded(true);
     });
   }, []);
+
+  useEffect(() => () => debounceRef.current && clearTimeout(debounceRef.current), []);
 
   const persist = async (patch) => {
     setBusy(true);
@@ -61,7 +73,14 @@ export default function ClientPrefsCard() {
   };
 
   const setTerm = (role, term) => {
-    persist({ role_terms: { ...prefs.role_terms, [role]: term } });
+    const next = { ...localTermsRef.current, [role]: term };
+    localTermsRef.current = next;
+    setLocalTerms(next);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    // Saves 700ms after the last keystroke, not on every one.
+    debounceRef.current = setTimeout(() => {
+      persist({ role_terms: localTermsRef.current });
+    }, 700);
   };
 
   if (!loaded) return null;
@@ -158,10 +177,9 @@ export default function ClientPrefsCard() {
             <div key={role} className="flex items-center gap-2">
               <span className="text-xs text-taupe w-24 flex-none">{role}</span>
               <Input
-                value={prefs.role_terms[role] || ""}
+                value={localTerms[role] || ""}
                 onChange={(e) => setTerm(role, e.target.value)}
                 placeholder={role}
-                disabled={busy}
               />
             </div>
           ))}

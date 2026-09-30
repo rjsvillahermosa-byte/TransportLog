@@ -4,7 +4,6 @@ import {
   Cloud,
   CloudOff,
   Crown,
-  Droplets,
   ImagePlus,
   Loader2,
   Lock,
@@ -19,7 +18,7 @@ import {
 } from "lucide-react";
 import { auth, drainQueue, integrations, resetTransportData, useOnline, usePendingCount, userAdmin } from "../lib/db";
 import { getSupabaseClient, supabaseActive } from "../lib/supabaseClient";
-import { getFuelConfig, saveFuelConfig } from "../lib/fuel";
+import FuelPriceWatchCard from "./FuelPriceWatchCard";
 import { applyTheme, DEFAULT_THEME, getTheme, resetTheme, saveTheme, THEME_PRESETS } from "../lib/theme";
 import {
   applyBranding,
@@ -584,7 +583,6 @@ export default function Settings({ user }) {
   const toast = useToast();
   const [syncing, setSyncing] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const [cfg, setCfg] = useState(getFuelConfig());
   const [theme, setTheme] = useState(getTheme());
 
   const pickPreset = (preset) => {
@@ -625,21 +623,27 @@ export default function Settings({ user }) {
     refreshUsers();
   }, []);
 
-  const removeUser = (u) => {
+  const removeUser = async (u) => {
     const isDemo = u.is_demo || /@fleetflow\.test$/i.test(u.email || "");
     const msg = isDemo
       ? `Delete the demo account "${u.full_name}"?\n\nAll bookings, missions, fuel logs and entries created by this demo account will also be wiped from the database.`
-      : `Delete the account for ${u.full_name}? They will no longer be able to sign in.`;
+      : `Disable the account for ${u.full_name}? They will no longer be able to sign in. The account stays on this list, marked Disabled, since it can't be fully erased from here.`;
     if (!window.confirm(msg)) return;
     try {
-      userAdmin.remove(u.id, user.email, user.role, isDemo);
-      refreshUsers();
+      // Was fire-and-forget (no await) — refreshUsers() and the success
+      // toast fired immediately, often before the disable had actually
+      // committed, so the list could reload showing the old, unchanged
+      // status. It also meant a real failure here (e.g. a permission
+      // check) became a silently-swallowed rejected promise instead of
+      // reaching this catch — the toast claimed success regardless.
+      await userAdmin.remove(u.id, user.email, user.role, isDemo);
+      await refreshUsers();
       toast({
-        title: isDemo ? "Demo account deleted" : "User deleted",
-        description: isDemo ? "Everything they created was wiped from the database." : "",
+        title: isDemo ? "Demo account deleted" : "Account disabled",
+        description: isDemo ? "Everything they created was wiped from the database." : "They can no longer sign in.",
       });
     } catch (e2) {
-      alert(e2.message);
+      toast({ title: "Couldn't disable this account", description: e2.message });
     }
   };
 
@@ -654,14 +658,6 @@ export default function Settings({ user }) {
     } catch (e2) {
       toast({ title: "Couldn't create demo account", description: e2.message });
     }
-  };
-
-  const setBand = (fuel, key) => (e) =>
-    setCfg((c) => ({ ...c, [fuel]: { ...c[fuel], [key]: Number(e.target.value) || 0 } }));
-
-  const saveBands = () => {
-    saveFuelConfig(cfg);
-    toast({ title: "Fuel price bands saved", description: "New fill-ups will be audited against these bands." });
   };
 
   const syncNow = async () => {
@@ -927,43 +923,7 @@ export default function Settings({ user }) {
       {/* Voice assistant */}
       <VoiceCard />
 
-      <div className="bg-white rounded-3xl shadow-card p-5 mb-6">
-        <div className="flex items-center gap-2 mb-1">
-          <Droplets className="w-4 h-4 text-brand" />
-          <h3 className="text-sm font-semibold text-cocoa">Fuel Price Bands (₱/L)</h3>
-        </div>
-        <p className="text-xs text-taupe mb-4">
-          Receipt prices outside these market bands are flagged on the Fuel page. Defaults follow
-          the DOE / GasWatch PH Metro Manila averages.
-        </p>
-        <div className="grid grid-cols-2 gap-4">
-          {(["gasoline", "diesel"]).map((fuel) => (
-            <div key={fuel}>
-              <Label className="text-xs capitalize">{fuel}</Label>
-              <div className="flex items-center gap-2 mt-1.5">
-                <Input
-                  type="number"
-                  value={cfg[fuel].min}
-                  onChange={setBand(fuel, "min")}
-                  className="h-9"
-                  aria-label={`${fuel} minimum`}
-                />
-                <span className="text-xs text-taupe">to</span>
-                <Input
-                  type="number"
-                  value={cfg[fuel].max}
-                  onChange={setBand(fuel, "max")}
-                  className="h-9"
-                  aria-label={`${fuel} maximum`}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-        <Button variant="outline" size="sm" className="mt-4" onClick={saveBands}>
-          Save Bands
-        </Button>
-      </div>
+      <FuelPriceWatchCard />
 
       <div className="bg-white rounded-xl border border-red-100 p-5">
         <h3 className="text-sm font-semibold text-red-700 mb-1">Danger Zone</h3>

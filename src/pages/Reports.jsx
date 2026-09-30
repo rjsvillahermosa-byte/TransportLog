@@ -14,6 +14,7 @@ import {
 import { api } from "../lib/db";
 import { computeRenewal } from "../lib/pms";
 import { getBranding } from "../lib/branding";
+import { useOrgPrefs } from "../lib/orgPrefs";
 import { Button, Input, Label, Select } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { cn } from "../lib/utils";
@@ -77,12 +78,12 @@ const DATASETS = {
     dated: true,
     columns: [
       ["fill_date", "Date"], ["vehicle_plate", "Vehicle"], ["odometer", "Odometer"],
-      ["liters", "Liters"], ["cost", "Cost ₱"], ["price_per_l", "₱/L"],
+      ["liters", "Liters"], ["cost", "Cost"], ["price_per_l", "Price/L"],
       ["station", "Station"], ["full_tank", "Full tank"],
     ],
     defaults: ["fill_date", "vehicle_plate", "odometer", "liters", "cost", "price_per_l", "station"],
     filters: ["range", "vehicle"],
-    sums: { liters: "Total liters", cost: "Total ₱" },
+    sums: { liters: "Total liters", cost: "Total" },
   },
   services: {
     label: "Service & PMS Records",
@@ -92,11 +93,11 @@ const DATASETS = {
     columns: [
       ["service_date", "Date"], ["vehicle_plate", "Vehicle"], ["service_type", "Type"],
       ["odometer_at_service", "Odometer"], ["service_provider", "Provider"],
-      ["cost", "Cost ₱"], ["next_service_km", "Next (km)"], ["source", "Source"],
+      ["cost", "Cost"], ["next_service_km", "Next (km)"], ["source", "Source"],
     ],
     defaults: ["service_date", "vehicle_plate", "service_type", "odometer_at_service", "service_provider", "cost"],
     filters: ["range", "vehicle"],
-    sums: { cost: "Total ₱" },
+    sums: { cost: "Total" },
   },
   vehicles: {
     label: "Vehicle Registry",
@@ -229,6 +230,7 @@ const loadSaved = () => {
 export default function Reports({ user }) {
   const toast = useToast();
   const navigate = useNavigate();
+  const { currency_symbol: sym } = useOrgPrefs();
   const [dsKey, setDsKey] = useState("missions");
   const [rows, setRows] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -551,6 +553,7 @@ export default function Reports({ user }) {
             rows={tableRows}
             sums={totals ? sums : null}
             sumLabels={ds.sums}
+            sym={sym}
           />
         )}
       </div>
@@ -598,6 +601,7 @@ export default function Reports({ user }) {
                 rows={tableRows}
                 sums={totals ? sums : null}
                 sumLabels={ds.sums}
+                sym={sym}
                 print
               />
 
@@ -613,7 +617,9 @@ export default function Reports({ user }) {
 }
 
 // ---------------- shared table ----------------
-function ReportTable({ cols, rows, sums, sumLabels, print = false }) {
+const CURRENCY_KEYS = new Set(["cost"]); // report fields shown with the org's currency symbol
+
+function ReportTable({ cols, rows, sums, sumLabels, sym, print = false }) {
   return (
     <div className={cn("overflow-x-auto", print ? "rp-table-wrap" : "rounded-xl border border-sand/70")}>
       <table className={print ? "rp-table" : "w-full text-sm"}>
@@ -649,7 +655,7 @@ function ReportTable({ cols, rows, sums, sumLabels, print = false }) {
                 return (
                   <td key={key} className={print ? "" : "px-3 py-2 text-cocoa"}>
                     {v != null
-                      ? `${Number(v).toLocaleString(undefined, { maximumFractionDigits: 1 })}${sumLabels?.[key]?.includes("km") ? " km" : sumLabels?.[key]?.includes("₱") ? " ₱" : ""}`
+                      ? `${Number(v).toLocaleString(undefined, { maximumFractionDigits: 1 })}${sumLabels?.[key]?.includes("km") ? " km" : CURRENCY_KEYS.has(key) ? ` ${sym}` : ""}`
                       : ""}
                   </td>
                 );

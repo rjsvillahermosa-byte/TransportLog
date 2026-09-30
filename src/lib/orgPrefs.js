@@ -11,6 +11,8 @@ export const DEFAULT_PREFS = {
   location_presets: [], // [{ name, kind: "both"|"pickup"|"dropoff" }]
   time_format: "24h",   // the standard — avoids AM/PM scheduling confusion
   role_terms: {},       // { Admin: "Dispatcher", Staff: "Front Office", ... }
+  currency_code: "PHP", // ISO 4217 — set per-org so non-Philippine clients aren't shown ₱
+  currency_symbol: "₱",
 };
 
 let cache = null;         // module-level so navigation doesn't refetch
@@ -25,7 +27,7 @@ export async function loadOrgPrefs(force = false) {
     try {
       const { data, error } = await sb
         .from("org_settings")
-        .select("location_presets, time_format, role_terms")
+        .select("organization_id, location_presets, time_format, role_terms, currency_code, currency_symbol")
         // the legacy NULL-org row is also visible to platform supers —
         // prefer the caller's real org row
         .order("organization_id", { nullsFirst: false })
@@ -34,6 +36,10 @@ export async function loadOrgPrefs(force = false) {
         cache = { ...DEFAULT_PREFS };
       } else {
         cache = {
+          // kept so saveOrgPrefs can target this exact row explicitly — the
+          // project requires an UPDATE to carry a real WHERE clause, RLS
+          // alone (a bare .update(patch)) is no longer accepted.
+          organization_id: data[0].organization_id,
           location_presets: Array.isArray(data[0].location_presets)
             ? data[0].location_presets
             : [],
@@ -42,6 +48,8 @@ export async function loadOrgPrefs(force = false) {
             data[0].role_terms && typeof data[0].role_terms === "object"
               ? data[0].role_terms
               : {},
+          currency_code: data[0].currency_code || DEFAULT_PREFS.currency_code,
+          currency_symbol: data[0].currency_symbol || DEFAULT_PREFS.currency_symbol,
         };
       }
     } catch {
@@ -57,11 +65,33 @@ export async function loadOrgPrefs(force = false) {
 export async function saveOrgPrefs(patch) {
   const sb = getSupabaseClient();
   if (!sb) throw new Error("Not connected");
-  // org_settings permits updates only where the caller is Admin/Super Admin —
-  // RLS scopes the row, so no org id is needed client-side.
-  const { error } = await sb.from("org_settings").update(patch);
+  // The project rejects any UPDATE with no real WHERE clause ("UPDATE
+  // requires a WHERE clause") — RLS alone used to be enough to scope this
+  // safely, but that's no longer accepted, so every save needs its own
+  // organization row id to filter on explicitly.
+  let orgId = cache?.organization_id;
+  if (!orgId) {
+    const fresh = await loadOrgPrefs(true);
+    orgId = fresh.organization_id;
+  }
+  if (!orgId) {
+    throw new Error("Couldn't determine your organization — try reloading the page.");
+  }
+  // .select() also lets us tell a zero-row RLS rejection (caller isn't
+  // Admin/Super Admin of this org) apart from a real success, instead of a
+  // false "saved" toast.
+  const { data, error } = await sb
+    .from("org_settings")
+    .update(patch)
+    .eq("organization_id", orgId)
+    .select("organization_id");
   if (error) throw new Error(error.message);
-  cache = { ...(cache || DEFAULT_PREFS), ...patch };
+  if (!data?.length) {
+    throw new Error(
+      "Nothing was saved — your account isn't recognized as an Admin or Super Admin of an active organization."
+    );
+  }
+  cache = { ...(cache || DEFAULT_PREFS), organization_id: orgId, ...patch };
   listeners.forEach((l) => l(cache));
   return cache;
 }
