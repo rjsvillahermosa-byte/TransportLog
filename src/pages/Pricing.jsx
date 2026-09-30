@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Sparkles } from "lucide-react";
 import { useSiteContent, PRICING_DEFAULTS, PLAN_DEFAULTS } from "../lib/siteContent";
@@ -13,7 +14,11 @@ const SECONDARY_BTN =
 
 export default function Pricing() {
   const c = useSiteContent("pricing", PRICING_DEFAULTS);
-  const plans = Array.isArray(c.plans) && c.plans.length === 4 ? c.plans : PLAN_DEFAULTS;
+  const plans = Array.isArray(c.plans) && c.plans.length === 4
+    ? c.plans.map((p) => ({ ...PLAN_DEFAULTS.find((d) => d.id === p.id), ...p }))
+    : PLAN_DEFAULTS;
+  // Annual toggle: shows each plan's editable yearly price + note.
+  const [annual, setAnnual] = useState(false);
 
   return (
     <div className="min-h-screen">
@@ -54,8 +59,26 @@ export default function Pricing() {
           </p>
         </section>
 
+        {/* Billing toggle */}
+        <section className="mt-8 flex items-center justify-center gap-3">
+          <span className={`text-sm font-semibold ${!annual ? "text-cocoa" : "text-taupe"}`}>Monthly</span>
+          <button
+            onClick={() => setAnnual((a) => !a)}
+            aria-label="Toggle annual billing"
+            className={`relative inline-flex h-7 w-13 w-[52px] items-center rounded-full transition-colors ${annual ? "bg-brand" : "bg-sand"}`}
+          >
+            <span className={`inline-block h-[22px] w-[22px] transform rounded-full bg-white shadow transition-transform ${annual ? "translate-x-[27px]" : "translate-x-[3px]"}`} />
+          </button>
+          <span className={`text-sm font-semibold ${annual ? "text-cocoa" : "text-taupe"}`}>
+            Annual
+            <span className="ml-2 rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-dark">
+              2 months free
+            </span>
+          </span>
+        </section>
+
         {/* Plan cards — compact: 4 across on desktop, tighter padding/type */}
-        <section className="mt-10 grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="mt-8 grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
           {plans.map((p) => (
             <div
               key={p.id || p.name}
@@ -74,9 +97,14 @@ export default function Pricing() {
               <p className="font-heading text-base font-bold text-cocoa">{p.name}</p>
               <p className="mt-0.5 min-h-[32px] text-[11px] leading-snug text-taupe">{p.tagline}</p>
               <p className="mt-2.5">
-                <span className="font-heading text-2xl font-extrabold text-cocoa">{p.price}</span>
-                <span className="ml-1 text-[11px] text-taupe">{p.per}</span>
+                <span className="font-heading text-2xl font-extrabold text-cocoa">
+                  {annual ? p.price_year || p.price : p.price}
+                </span>
+                <span className="ml-1 text-[11px] text-taupe">{annual ? p.per_year || p.per : p.per}</span>
               </p>
+              {annual && p.year_note && (
+                <p className="mt-1 text-[11px] font-bold text-brand">{p.year_note}</p>
+              )}
               <p className="mt-2 rounded-lg bg-cream px-2.5 py-1.5 text-[11px] font-semibold text-brand">
                 {p.caps}
               </p>

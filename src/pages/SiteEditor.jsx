@@ -217,8 +217,13 @@ export default function SiteEditor() {
                     </div>
                     <Field label="Tagline" value={p.tagline || ""} onChange={(v) => setPlan(i, "tagline", v)} />
                     <div className="grid grid-cols-2 gap-3">
-                      <Field label="Price (e.g. ₱1,500 / Custom)" value={p.price || ""} onChange={(v) => setPlan(i, "price", v)} />
+                      <Field label="Price — monthly (e.g. ₱1,500 / Custom)" value={p.price || ""} onChange={(v) => setPlan(i, "price", v)} />
                       <Field label="Period (e.g. / month)" value={p.per || ""} onChange={(v) => setPlan(i, "per", v)} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <Field label="Price — annual (shown on toggle)" value={p.price_year || ""} onChange={(v) => setPlan(i, "price_year", v)} />
+                      <Field label="Annual period (e.g. / year)" value={p.per_year || ""} onChange={(v) => setPlan(i, "per_year", v)} />
+                      <Field label="Annual note (e.g. 2 months free)" value={p.year_note || ""} onChange={(v) => setPlan(i, "year_note", v)} />
                     </div>
                     <Field label="Caps line (vehicles · seats)" value={p.caps || ""} onChange={(v) => setPlan(i, "caps", v)} />
                     <Field
