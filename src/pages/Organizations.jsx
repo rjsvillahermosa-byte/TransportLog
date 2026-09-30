@@ -27,6 +27,55 @@ const BLANK_FORM = {
 const slugify = (s) =>
   s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "org";
 
+/**
+ * Inline editor for the paywall caps. Commits on blur/Enter; warns before
+ * tightening a cap below current usage (existing members/vehicles are never
+ * auto-removed — enforcement only blocks NEW adds above the cap).
+ */
+function LimitsEditor({ org, memberCount, onCommit }) {
+  const [veh, setVeh] = useState(String(org.max_vehicles));
+  const [usr, setUsr] = useState(String(org.max_users));
+
+  // Re-sync when the row changes underneath us (refresh, other edit).
+  useEffect(() => { setVeh(String(org.max_vehicles)); }, [org.max_vehicles]);
+  useEffect(() => { setUsr(String(org.max_users)); }, [org.max_users]);
+
+  const commit = () => {
+    const nv = Math.max(1, parseInt(veh, 10) || org.max_vehicles);
+    const nu = Math.max(1, parseInt(usr, 10) || org.max_users);
+    if (nv === org.max_vehicles && nu === org.max_users) return;
+    if (nu < memberCount &&
+        !window.confirm(`${org.name} currently has ${memberCount} active members. Lowering the seat cap to ${nu} blocks NEW signups/enrollments until you raise it again — existing members stay. Continue?`)) {
+      setUsr(String(org.max_users));
+      return;
+    }
+    onCommit({ max_vehicles: nv, max_users: nu });
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <span title="Max vehicles">🚗</span>
+      <Input
+        type="number" min="1"
+        value={veh}
+        onChange={(e) => setVeh(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === "Enter" && e.target.blur()}
+        className="!h-7 !py-0 w-14 text-xs"
+      />
+      <span title="Max users" className="ml-1">👤</span>
+      <Input
+        type="number" min="1"
+        value={usr}
+        onChange={(e) => setUsr(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === "Enter" && e.target.blur()}
+        className="!h-7 !py-0 w-14 text-xs"
+      />
+    </div>
+  );
+}
+
 export default function Organizations() {
   const toast = useToast();
   const [orgs, setOrgs] = useState([]);
@@ -269,7 +318,11 @@ export default function Organizations() {
                     </Select>
                   </td>
                   <td className="px-4 py-3 text-xs text-mocha">
-                    🚗 {o.max_vehicles} · 👤 {o.max_users}
+                    <LimitsEditor
+                      org={o}
+                      memberCount={memberCounts[o.id] ?? 0}
+                      onCommit={(patch) => setPlanField(o.id, patch)}
+                    />
                   </td>
                   <td className="px-4 py-3">
                     <button
