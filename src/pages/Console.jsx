@@ -54,18 +54,12 @@ const SECTIONS = [
     items: [
       { label: "Clients", path: "/organizations", icon: Building2, desc: "Client codes, plans, members & status" },
       { label: "Onboarding", path: "/onboarding", icon: Users, desc: "Guided tenant creation with welcome kits" },
+      { label: "Subscriptions", path: "/subscriptions", icon: CreditCard, desc: "Plan billing, invoices & upgrade flow per client" },
+      { label: "Master Permissions", path: "/permissions", icon: UserCog, desc: "Role matrix editor beyond the fixed roles" },
+      { label: "R&D Lab", path: "/lab", icon: FlaskConical, desc: "Feature flags & experimental rollouts" },
       { label: "Audit Logs", path: "/audit-logs", icon: ScrollText, desc: "Who changed what, across every tenant" },
       { label: "System Usage", path: "/system-usage", icon: Activity, desc: "Seats, vehicles & activity per organization" },
       { label: "Settings", path: "/settings", icon: Palette, desc: "Branding, fuel bands, users & data tools" },
-    ],
-  },
-  {
-    label: "Roadmap",
-    soon: true,
-    items: [
-      { label: "Subscriptions", icon: CreditCard, desc: "Plan billing, invoices & upgrade flow per client" },
-      { label: "Master Permissions", icon: UserCog, desc: "Role matrix editor beyond the fixed roles" },
-      { label: "R&D Lab", icon: FlaskConical, desc: "Feature flags & experimental rollouts" },
     ],
   },
 ];

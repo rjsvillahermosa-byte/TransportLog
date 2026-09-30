@@ -23,6 +23,9 @@ import Console from "./pages/Console";
 import AuditLogs from "./pages/AuditLogs";
 import Onboarding from "./pages/Onboarding";
 import SystemUsage from "./pages/SystemUsage";
+import Subscriptions from "./pages/Subscriptions";
+import MasterPermissions from "./pages/MasterPermissions";
+import RandDLab from "./pages/RandDLab";
 import Landing from "./pages/Landing";
 import { LoginPage } from "./pages/Auth";
 import { RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./pages/AuthExtra";
@@ -88,6 +91,21 @@ function Shell() {
           <AdminOnlyNotice
             title="Super Admin only"
             message="The Console maps the entire platform and is limited to Super Admin accounts."
+          />
+        )
+      ) : location.pathname === "/subscriptions" || location.pathname === "/permissions" || location.pathname === "/lab" ? (
+        user.role === "Super Admin" ? (
+          location.pathname === "/subscriptions" ? (
+            <Subscriptions />
+          ) : location.pathname === "/permissions" ? (
+            <MasterPermissions />
+          ) : (
+            <RandDLab />
+          )
+        ) : (
+          <AdminOnlyNotice
+            title="Super Admin only"
+            message="This console page is limited to Super Admin accounts."
           />
         )
       ) : location.pathname === "/audit-logs" || location.pathname === "/onboarding" || location.pathname === "/system-usage" ? (
