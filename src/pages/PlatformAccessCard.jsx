@@ -18,17 +18,40 @@ const PLATFORM_ROLES = [
 export function PlatformTeamCard() {
   const toast = useToast();
   const [people, setPeople] = useState([]);
+  const [orgMap, setOrgMap] = useState({});   // orgId  -> "Name (CODE)"
+  const [memberMap, setMemberMap] = useState({}); // userId -> [{org label, owner}]
   const [busy, setBusy] = useState("");
 
   const load = async () => {
     const sb = getSupabaseClient();
-    const { data } = await sb
-      .from("profiles")
-      .select("id, full_name, email, role, platform_role")
-      .order("full_name");
-    setPeople(data || []);
+    // Profiles + memberships + org registry joined client-side so every row
+    // shows WHICH COMPANY the account belongs to (owner/delegate can read all
+    // three: "members read own orgs" and "orgs read own" include platform).
+    const [{ data: profRows }, { data: memberRows }, { data: orgRows }] = await Promise.all([
+      sb.from("profiles").select("id, full_name, email, role, platform_role").order("full_name"),
+      sb.from("organization_members").select("user_id, organization_id, role, is_org_owner, status"),
+      sb.from("organizations").select("id, name, client_code"),
+    ]);
+    setPeople(profRows || []);
+    const om = {};
+    (orgRows || []).forEach((o) => { om[o.id] = `${o.name} (${o.client_code})`; });
+    setOrgMap(om);
+    const mm = {};
+    (memberRows || []).forEach((m) => {
+      if (!mm[m.user_id]) mm[m.user_id] = [];
+      mm[m.user_id].push({
+        label: om[m.organization_id] || m.organization_id,
+        owner: !!m.is_org_owner,
+        active: m.status === "Active",
+      });
+    });
+    setMemberMap(mm);
   };
   useEffect(() => { load(); }, []);
+
+  const orgsOf = (userId) =>
+    (memberMap[userId] || [])
+      .map((m) => `${m.label}${m.owner ? " · owner" : ""}${m.active ? "" : " · disabled"}`);
 
   const setRole = async (id, platform_role) => {
     setBusy(id);
@@ -61,7 +84,12 @@ export function PlatformTeamCard() {
           <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-2 border border-sand/60 rounded-xl px-3 py-2">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-cocoa truncate">{p.full_name}</p>
-              <p className="text-xs text-taupe truncate">{p.email} · client role: {p.role}</p>
+              <p className="text-xs text-taupe truncate">
+                {p.email} · client role: {p.role}
+                {orgsOf(p.id).length
+                  ? ` · 🏢 ${orgsOf(p.id).join(" + ")}`
+                  : " · 🏢 no organization"}
+              </p>
             </div>
             <Select
               value={p.platform_role || ""}
