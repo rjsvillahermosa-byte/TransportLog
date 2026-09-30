@@ -27,6 +27,7 @@ import Subscriptions from "./pages/Subscriptions";
 import MasterPermissions from "./pages/MasterPermissions";
 import RandDLab from "./pages/RandDLab";
 import SiteEditor from "./pages/SiteEditor";
+import ReviewApprovals from "./pages/ReviewApprovals";
 import Landing from "./pages/Landing";
 import Pricing from "./pages/Pricing";
 import Privacy from "./pages/Privacy";
@@ -153,6 +154,15 @@ function Shell() {
           <AdminOnlyNotice
             title="Platform owner only"
             message="The Site Editor changes the public marketing pages and is limited to the platform owner."
+          />
+        )
+      ) : location.pathname === "/review-approvals" ? (
+        user.role === "Super Admin" ? (
+          <ReviewApprovals />
+        ) : (
+          <AdminOnlyNotice
+            title="Platform team only"
+            message="Review moderation is limited to the platform owner and platform admins."
           />
         )
       ) : location.pathname === "/subscriptions" || location.pathname === "/permissions" || location.pathname === "/lab" ? (

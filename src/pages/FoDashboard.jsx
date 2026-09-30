@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "../lib/day";
-import { LogOut } from "lucide-react";
+import { LogOut, Star, Clock } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -53,17 +53,30 @@ export default function FoDashboard() {
   const [requests, setRequests] = useState([]);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [myReview, setMyReview] = useState(null); // own site review incl. pending (RLS: own rows only)
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        const [r, l] = await Promise.all([
+        const [r, l, rv] = await Promise.all([
           api.entities.TransportRequest.list("-schedule_date", 500),
           api.entities.MileageLog.list("-time_out", 500),
+          auth.currentUser().then(async (u) => {
+            if (!u) return null;
+            const { getSupabaseClient } = await import("../lib/supabaseClient");
+            const { data } = await getSupabaseClient()
+              .from("site_reviews")
+              .select("id, rating, approved, created_at")
+              .eq("submitter_user_id", u.id)
+              .order("created_at", { ascending: false })
+              .limit(1);
+            return data?.[0] || null;
+          }),
         ]);
         setRequests(r);
         setLogs(l);
+        setMyReview(rv);
       } finally {
         setLoading(false);
       }
@@ -272,6 +285,38 @@ export default function FoDashboard() {
             })}
           </div>
         )}
+      </div>
+
+      {/* ================= SHARE YOUR EXPERIENCE (site review pipeline) ================= */}
+      <div className="bg-white rounded-3xl shadow-card p-5 mb-8">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-mint/50 border border-brand/20 flex items-center justify-center flex-none">
+            <Star className="w-5 h-5 text-brand" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-semibold text-cocoa">Share your experience</h3>
+            {myReview && !myReview.approved ? (
+              <p className="text-xs text-taupe mt-0.5 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-accent-dark" />
+                Your review is in the approval queue — it goes live on the site once the FleetFlow
+                team approves it.
+              </p>
+            ) : (
+              <p className="text-xs text-taupe mt-0.5">
+                {myReview?.approved
+                  ? "Your review is live on our Reviews page — thank you! Feel free to share another."
+                  : "Tell other teams what changed for yours — it appears on our public Reviews page after a quick approval."}
+              </p>
+            )}
+          </div>
+          <Link
+            to="/reviews"
+            state={{ scrollToForm: true }}
+            className="flex-none inline-flex h-9 items-center rounded-lg bg-brand px-4 text-xs font-bold uppercase tracking-wide text-white hover:bg-brand-dark transition-colors"
+          >
+            <Star className="w-3.5 h-3.5 mr-1.5" /> Write a review
+          </Link>
+        </div>
       </div>
 
       {/* ================= REPORTS & ANALYTICS (details below) ================= */}

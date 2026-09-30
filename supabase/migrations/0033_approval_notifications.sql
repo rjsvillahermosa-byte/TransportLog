@@ -101,18 +101,19 @@ end $$;
 -- (Integrations → Cron), or call it manually in the SQL editor after
 -- approving someone:
 create or replace function public.try_schedule_approval_sweeper()
-returns void language plpgsql as $$
+returns void language plpgsql as $fn$
 begin
   if exists (select 1 from pg_extension where extname = 'pg_cron') then
     perform cron.schedule(
       'approval-email-sweeper',
       '* * * * *',
-      $$select public.send_queued_approval_emails();$$
+      -- distinct dollar-quote tag: a nested $$ would close the outer body early
+      $cmd$select public.send_queued_approval_emails();$cmd$
     );
   else
     raise notice 'pg_cron not available - schedule send_queued_approval_emails() via Dashboard → Cron.';
   end if;
-end $$;
+end $fn$;
 select public.try_schedule_approval_sweeper();
 
 -- ---------------------------------------------------------------------------
