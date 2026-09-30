@@ -37,7 +37,7 @@ export function AuthLayout({ icon: Icon = Car, title, subtitle, footer, children
         <div className="bg-white rounded-3xl border border-sand/70 p-6 shadow-card">{children}</div>
         {footer && <div className="text-center text-sm text-taupe mt-4">{footer}</div>}
         <p className="text-center text-xs text-taupe mt-6">
-          {brand.name} — intelligent hotel transport management
+          {brand.name} — intelligent fleet & transport management system
         </p>
       </div>
     </div>
