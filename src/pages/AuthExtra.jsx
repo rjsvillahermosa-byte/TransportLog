@@ -4,6 +4,7 @@ import { UserPlus, KeyRound, ShieldQuestion } from "lucide-react";
 import { Button, Input, Label } from "../components/ui";
 import { auth } from "../lib/db";
 import { AuthLayout } from "./Auth";
+import { readPlanIntent } from "../lib/siteContent";
 
 export function RegisterPage() {
   const [form, setForm] = useState((init) => ({ ...init, client_code: (new URLSearchParams(window.location.search).get("code") || "").trim().toUpperCase() }));
@@ -11,6 +12,10 @@ export function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [codeChecking, setCodeChecking] = useState(false);
+  // Plan intent from the Pricing page CTA — shown as context on the form so
+  // the visitor knows their tier was noted; the operator's onboarding tool
+  // reads the same stashed intent when creating the org.
+  const [planIntent] = useState(readPlanIntent);
   const [codeStatus, setCodeStatus] = useState(null); // {ok, name} | {ok:false}
 
   // Welcome-kit links (/register?code=XXXX from Client Onboarding) prefill and
@@ -152,9 +157,15 @@ export function RegisterPage() {
         <Button variant="primary" className="w-full" disabled={loading}>
           {loading ? "Creating account…" : "Create Account"}
         </Button>
+        {planIntent && (
+          <p className="rounded-lg bg-mint/50 border border-brand/30 px-3 py-2 text-xs text-brand text-center">
+            ✓ Your <b className="capitalize">{planIntent}</b> plan choice is noted — it'll be
+            set up with your account.
+          </p>
+        )}
         <p className="text-xs text-taupe text-center">
           The first account on a client code becomes its Super Admin — later
-          accounts start as Staff.
+          accounts start as Staff (and wait for approval).
         </p>
       </form>
     </AuthLayout>

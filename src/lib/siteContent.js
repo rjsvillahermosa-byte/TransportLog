@@ -174,6 +174,29 @@ export async function loadPlans() {
   return Array.isArray(doc.plans) && doc.plans.length === 4 ? doc.plans : PLAN_DEFAULTS;
 }
 
+// Org-creation presets per tier — what the Onboarding wizard applies when a
+// plan is chosen (matching the Pricing page caps). The operator can override
+// any limit afterward.
+export const PLAN_LIMIT_PRESETS = {
+  trial: { max_vehicles: 2, max_users: 3 },
+  starter: { max_vehicles: 5, max_users: 8 },
+  pro: { max_vehicles: 20, max_users: 25 },
+  enterprise: { max_vehicles: 100, max_users: 200 },
+};
+
+// Signup intent: the Pricing CTAs stash the chosen tier so the operator's
+// onboarding wizard can pre-fill it (localStorage, cleared after use).
+export const PLAN_INTENT_KEY = "ff:plan_intent";
+export function stashPlanIntent(planId) {
+  try { localStorage.setItem(PLAN_INTENT_KEY, planId); } catch { /* private mode */ }
+}
+export function readPlanIntent() {
+  try { return localStorage.getItem(PLAN_INTENT_KEY) || ""; } catch { return ""; }
+}
+export function clearPlanIntent() {
+  try { localStorage.removeItem(PLAN_INTENT_KEY); } catch { /* noop */ }
+}
+
 /** React hook: merged defaults + saved overrides for a page key. */
 export function useSiteContent(key, defaults) {
   const [doc, setDoc] = useState(defaults);

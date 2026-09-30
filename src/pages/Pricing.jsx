@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Sparkles } from "lucide-react";
-import { useSiteContent, PRICING_DEFAULTS, PLAN_DEFAULTS } from "../lib/siteContent";
+import { useSiteContent, PRICING_DEFAULTS, PLAN_DEFAULTS, stashPlanIntent } from "../lib/siteContent";
 
 // Public Pricing / Subscription page. Every card element — name, tagline,
 // price, period, caps line, CTA, inclusions, highlight flag — is editable
@@ -124,6 +124,7 @@ export default function Pricing() {
               </ul>
               <Link
                 to="/register"
+                onClick={() => stashPlanIntent(p.id)}
                 className={`${p.highlight ? PRIMARY_BTN : SECONDARY_BTN} mt-4 w-full`}
               >
                 {p.cta}

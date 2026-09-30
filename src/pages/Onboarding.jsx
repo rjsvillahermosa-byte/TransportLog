@@ -3,6 +3,11 @@ import { Building2, Check, Copy, Link2, UserPlus, Users, Wand2 } from "lucide-re
 import { Button, Input, Label, Modal, Select } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { getSupabaseClient } from "../lib/supabaseClient";
+import {
+  PLAN_LIMIT_PRESETS,
+  readPlanIntent,
+  clearPlanIntent,
+} from "../lib/siteContent";
 
 // Client Onboarding — guided tenant creation (Console roadmap card, now live).
 // 4 steps: identity → plan & limits → review/create → welcome kit. The welcome
@@ -31,6 +36,9 @@ export default function Onboarding() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [created, setCreated] = useState(null); // the org row after creation
+  // Pricing-page intent: the tier a prospective client picked is pre-applied
+  // here (limits preset, noted in the UI), and cleared once consumed.
+  const [intent] = useState(readPlanIntent);
   const [profiles, setProfiles] = useState([]);
   const [members, setMembers] = useState([]);   // linked so far: {user_id, role}
   const [linkId, setLinkId] = useState("");
@@ -49,7 +57,10 @@ export default function Onboarding() {
   );
 
   const openWizard = async () => {
-    setForm(BLANK); setStep(1); setError(""); setCreated(null); setMembers([]); setLinkId("");
+    const preset = PLAN_LIMIT_PRESETS[intent];
+    setForm({ ...BLANK, ...(preset ? { plan_type: intent, ...preset } : {}) });
+    setStep(1); setError(""); setCreated(null); setMembers([]); setLinkId("");
+    if (intent) clearPlanIntent();
     const sb = getSupabaseClient();
     const { data } = await sb.from("profiles").select("id, full_name, email").order("full_name");
     setProfiles(data || []);
@@ -223,6 +234,12 @@ export default function Onboarding() {
 
         {step === 3 && (
           <div className="space-y-4">
+            {intent === form.plan_type && (
+              <p className="rounded-lg bg-mint/50 border border-brand/30 px-3 py-2 text-xs text-brand">
+                ✓ Preset from the client's Pricing page choice ({form.plan_type}). Adjust any
+                limit below if the deal differs.
+              </p>
+            )}
             <div className="rounded-xl bg-cream border border-sand/60 p-4 text-sm space-y-1">
               <p><span className="text-taupe">Code:</span> <span className="font-mono font-bold text-brand">{form.client_code}</span></p>
               <p><span className="text-taupe">Name:</span> {form.name || "—"}</p>
