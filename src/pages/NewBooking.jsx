@@ -8,6 +8,7 @@ import { Button, Input, Label, Select, Textarea, Spinner } from "../components/u
 import { useToast } from "../components/Layout";
 import { cn } from "../lib/utils";
 import { useOrgPrefs, formatTimePref } from "../lib/orgPrefs";
+import { useFeatureFlag } from "../lib/access";
 
 const OTHERS = "__others__";
 
@@ -92,6 +93,10 @@ const emptyForm = {
 
 export default function NewBooking({ user }) {
   const prefs = useOrgPrefs();
+  // R&D Lab flag: booking location presets can be rolled back to plain
+  // free-text inputs globally or per client (pilot list in /lab).
+  const presetsOn = useFeatureFlag("booking_presets", prefs?.organization_id);
+  const effectivePrefs = presetsOn ? prefs : { ...prefs, location_presets: [] };
   const navigate = useNavigate();
   const toast = useToast();
   const [mode, setMode] = useState("guest"); // "guest" | "errand"
@@ -311,7 +316,7 @@ export default function NewBooking({ user }) {
               kind="pickup"
               value={form.pickup_location}
               onChange={set("pickup_location")}
-              prefs={prefs}
+              prefs={effectivePrefs}
               placeholder="Hotel Lobby"
             />
             <LocationField
@@ -320,7 +325,7 @@ export default function NewBooking({ user }) {
               kind="dropoff"
               value={form.destination}
               onChange={set("destination")}
-              prefs={prefs}
+              prefs={effectivePrefs}
               placeholder={mode === "errand" ? "e.g. Supplier warehouse — Pasay" : "Airport Terminal 3"}
             />
             <div className="grid grid-cols-2 gap-3">

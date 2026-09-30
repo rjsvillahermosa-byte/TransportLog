@@ -29,6 +29,7 @@ import RandDLab from "./pages/RandDLab";
 import Landing from "./pages/Landing";
 import { LoginPage } from "./pages/Auth";
 import { RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./pages/AuthExtra";
+import { useAccessMatrix } from "./lib/access";
 
 const AUTH_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
 
@@ -41,6 +42,9 @@ function Shell() {
   const [user, setUser] = useState(null);
   const [booting, setBooting] = useState(true);
   const location = useLocation();
+  // 0029 Master Permissions: same matrix the nav uses, so the URL-bar route
+  // gates stay in lockstep with what the user can see.
+  const matrix = useAccessMatrix();
   const isAuthPath = AUTH_PATHS.includes(location.pathname);
   // Public landing page for logged-out web visitors only. An installed PWA
   // goes straight to login.
@@ -74,10 +78,10 @@ function Shell() {
   return (
     <Layout user={user}>
       {/* Role gates — login-based, so they behave the same on any device. */}
-      {location.pathname === "/settings" && !["Super Admin", "Admin"].includes(user.role) ? (
+      {location.pathname === "/settings" && !matrix.manage_settings?.includes(user.role) ? (
         <AdminOnlyNotice />
       ) : location.pathname === "/reports" &&
-        !["Super Admin", "Admin", "Supervisor"].includes(user.role) ? (
+        !matrix.view_reports?.includes(user.role) ? (
         <AdminOnlyNotice
           title="Supervisor access only"
           message="The report builder is limited to Supervisor and Admin accounts. Ask your administrator for access."

@@ -26,6 +26,7 @@ import { cn } from "../lib/utils";
 import { auth, drainQueue, useOnline, usePendingCount, onDataChange } from "../lib/db";
 import VoiceAssistant from "./VoiceAssistant";
 import { useBranding } from "../lib/branding";
+import { useAccessMatrix } from "../lib/access";
 
 // Grouped nav — sections mirror the Super Admin Console map. Flat order
 // (what desktop shows / auto-fit measures) comes from flattening these.
@@ -154,9 +155,13 @@ export default function Layout({ user, children }) {
   const moreWrapRef = useRef(null);
   const isSuper = user?.role === "Super Admin";
   const isAdmin = isSuper || user?.role === "Admin";
-  const canReports = isAdmin || user?.role === "Supervisor";
+  // 0029 Master Permissions: the matrix tunes which roles see Reports/Settings
+  // in the nav (fail-open to the classic gates until it loads).
+  const matrix = useAccessMatrix();
+  const canReports = (matrix.view_reports || []).includes(user?.role);
+  const canSettings = (matrix.manage_settings || []).includes(user?.role);
   const navItems = NAV_ITEMS.filter((i) =>
-    i.superOnly ? isSuper : i.adminOnly ? isAdmin : i.path === "/reports" ? canReports : true
+    i.superOnly ? isSuper : i.path === "/reports" ? canReports : i.path === "/settings" ? canSettings : i.adminOnly ? isAdmin : true
   );
   const visibleGroups = NAV_GROUPS.map((g) => ({
     ...g,
