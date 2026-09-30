@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import LiveBackground from "../components/LiveBackground";
+import { useSiteContent, LANDING_DEFAULTS, FEATURE_DEFAULTS } from "../lib/siteContent";
 import {
   AlertTriangle,
   ArrowRight,
@@ -28,38 +29,10 @@ const PRIMARY_BTN =
 const SECONDARY_BTN =
   "inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-sand bg-white px-6 text-xs font-bold uppercase tracking-wide text-cocoa transition-colors hover:bg-mint/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60";
 
-const FEATURES = [
-  {
-    icon: ClipboardList,
-    title: "Bookings & dispatch",
-    body: "Log guest transfers and department errands in seconds, assign a driver and vehicle, and follow every mission from pending to completed.",
-  },
-  {
-    icon: Camera,
-    title: "Photo-verified mileage",
-    body: "Drivers snap the odometer before and after each trip. The reading is captured from the photo, so distances are on record instead of on memory.",
-  },
-  {
-    icon: ScanLine,
-    title: "License scan enrollment",
-    body: "Photograph a driver's license and the name, number and expiry fill in for you — along with a profile avatar made from the same photo.",
-  },
-  {
-    icon: CalendarClock,
-    title: "Renewals & servicing",
-    body: "License, registration and insurance expiries are tracked in one place, alongside service history and next-service reminders read from casa reports.",
-  },
-  {
-    icon: Droplets,
-    title: "Fuel & reports",
-    body: "Log fill-ups per vehicle with a consumption audit that spots anomalies, and produce print-ready reports for supervisors and finance, or save them straight to PDF.",
-  },
-  {
-    icon: QrCode,
-    title: "QR codes & voice",
-    body: "Print QR codes for a front-desk booking link and an in-vehicle driver dashboard, and let drivers log an odometer reading by voice when their hands are busy.",
-  },
-];
+// Editable feature-card copy (titles + bodies via the Site Editor); icons stay fixed.
+const FEATURES = FEATURE_DEFAULTS.map((f, i) => ({ ...f, icon: [
+  ClipboardList, Camera, ScanLine, CalendarClock, Droplets, QrCode,
+][i] }));
 
 const STEPS = [
   {
@@ -75,6 +48,16 @@ const STEPS = [
     body: "Supervisors see completed missions, mileage and fuel at a glance, and export reports when the month closes.",
   },
 ];
+
+// Parse Site Editor step format: "Title~Body|Title~Body|..."
+function parseSteps(raw, fallback) {
+  if (!raw) return fallback;
+  const parts = raw.split("|").map((p) => {
+    const [t, b] = p.split("~");
+    return t && b ? { title: t.trim(), body: b.trim() } : null;
+  }).filter(Boolean);
+  return parts.length === 3 ? parts : fallback;
+}
 
 const ROLES = [
   { name: "Staff", body: "Create bookings and follow their status." },
@@ -162,6 +145,10 @@ function ProductPreview() {
 }
 
 export default function Landing() {
+  // Every copy block is editable via the Site Editor (0031) — defaults here,
+  // saved overrides win at render.
+  const c = useSiteContent("landing", LANDING_DEFAULTS);
+  const steps = parseSteps(c.how_steps, STEPS);
   // Smooth-scroll for the in-page nav anchors, without touching the rest of the app.
   useEffect(() => {
     const root = document.documentElement;
@@ -205,26 +192,24 @@ export default function Landing() {
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-12 md:grid-cols-2 md:pt-20">
           <div>
             <p className="mb-4 inline-flex items-center rounded-full bg-mint px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand">
-              Fleet &amp; Transport Management System
+              {c.badge}
             </p>
             <h1 className="font-heading text-4xl font-extrabold leading-tight text-cocoa sm:text-5xl">
-              Every trip logged. Every kilometer verified.
+              {c.hero_title}
             </h1>
             <p className="mt-5 max-w-lg text-base leading-relaxed text-mocha">
-              FleetFlow keeps your drivers, vehicles, and missions in one place —
-              dispatch a trip, capture the odometer by photo, and know exactly
-              where every kilometer went.
+              {c.hero_body}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/register" className={PRIMARY_BTN}>
-                Create an account <ArrowRight className="h-4 w-4" />
+                {c.hero_cta_primary} <ArrowRight className="h-4 w-4" />
               </Link>
               <Link to="/login" className={SECONDARY_BTN}>
-                Sign in
+                {c.hero_cta_secondary}
               </Link>
             </div>
             <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-mocha">
-              {["Works on any phone", "Photo-verified mileage", "Role-based access"].map((t) => (
+              {(c.hero_points || "").split("|").filter(Boolean).map((t) => (
                 <li key={t} className="flex items-center gap-1.5">
                   <Check className="h-4 w-4 text-brand" /> {t}
                 </li>
@@ -238,9 +223,9 @@ export default function Landing() {
         <section id="features" className="scroll-mt-20 bg-white/60 py-20">
           <div className="mx-auto max-w-6xl px-4">
             <div className="mx-auto max-w-2xl text-center">
-              <h2 className="font-heading text-3xl font-bold text-cocoa">Everything the motor pool needs</h2>
+              <h2 className="font-heading text-3xl font-bold text-cocoa">{c.features_title}</h2>
               <p className="mt-3 text-mocha">
-                Replace the paper logbook, the spreadsheet and the group chat with one system your whole team can use.
+                {c.features_body}
               </p>
             </div>
             <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -260,10 +245,10 @@ export default function Landing() {
         {/* How it works */}
         <section id="how" className="scroll-mt-20 mx-auto max-w-6xl px-4 py-20">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="font-heading text-3xl font-bold text-cocoa">From booking to report in three steps</h2>
+            <h2 className="font-heading text-3xl font-bold text-cocoa">{c.how_title}</h2>
           </div>
           <ol className="mt-12 grid gap-6 md:grid-cols-3">
-            {STEPS.map((s, i) => (
+            {steps.map((s, i) => (
               <li key={s.title} className="relative rounded-3xl bg-white p-6 shadow-card">
                 <span className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-brand font-heading text-lg font-bold text-white">
                   {i + 1}
@@ -279,10 +264,9 @@ export default function Landing() {
         <section id="fraud" className="scroll-mt-20 bg-white/60 py-20">
           <div className="mx-auto max-w-6xl px-4">
             <div className="mx-auto max-w-2xl text-center">
-              <h2 className="font-heading text-3xl font-bold text-cocoa">The photo doesn't lie</h2>
+              <h2 className="font-heading text-3xl font-bold text-cocoa">{c.fraud_title}</h2>
               <p className="mt-3 text-mocha">
-                Fuel numbers are only as honest as their source. Every fill-up is cross-checked
-                against the odometer and the tank itself — and the audit flags what doesn't add up:
+                {c.fraud_body}
               </p>
             </div>
             <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -307,8 +291,8 @@ export default function Landing() {
         <section id="roles" className="scroll-mt-20 bg-white/60 py-20">
           <div className="mx-auto max-w-6xl px-4">
             <div className="mx-auto max-w-2xl text-center">
-              <h2 className="font-heading text-3xl font-bold text-cocoa">The right access for every person</h2>
-              <p className="mt-3 text-mocha">Drivers see their missions. Supervisors see the fleet. Admins run the system.</p>
+              <h2 className="font-heading text-3xl font-bold text-cocoa">{c.roles_title}</h2>
+              <p className="mt-3 text-mocha">{c.roles_body}</p>
             </div>
             <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
               {ROLES.map((r) => (
@@ -336,9 +320,9 @@ export default function Landing() {
         {/* Final CTA */}
         <section className="mx-auto max-w-6xl px-4 pb-20">
           <div className="rounded-[2rem] bg-brand px-6 py-14 text-center shadow-lift">
-            <h2 className="font-heading text-3xl font-bold text-white">Ready to see where every trip goes?</h2>
+            <h2 className="font-heading text-3xl font-bold text-white">{c.final_title}</h2>
             <p className="mx-auto mt-3 max-w-xl text-white/85">
-              Sign in to your account, or create one to start logging missions today.
+              {c.final_body}
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link
@@ -363,7 +347,7 @@ export default function Landing() {
           <div className="flex items-center gap-2">
             <img src="/logo.svg" alt="" className="h-6 w-6 rounded-md" />
             <span className="font-medium text-mocha">FleetFlow</span>
-            <span>— intelligent fleet & transport management system</span>
+            <span>{c.footer_tagline}</span>
           </div>
           <div className="flex gap-5">
             <Link to="/login" className="hover:text-brand">Sign in</Link>

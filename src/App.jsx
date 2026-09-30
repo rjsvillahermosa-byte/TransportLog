@@ -26,6 +26,7 @@ import SystemUsage from "./pages/SystemUsage";
 import Subscriptions from "./pages/Subscriptions";
 import MasterPermissions from "./pages/MasterPermissions";
 import RandDLab from "./pages/RandDLab";
+import SiteEditor from "./pages/SiteEditor";
 import Landing from "./pages/Landing";
 import Pricing from "./pages/Pricing";
 import VehicleScan from "./pages/VehicleScan";
@@ -103,6 +104,15 @@ function Shell() {
           <AdminOnlyNotice
             title="Super Admin only"
             message="The Console maps the entire platform and is limited to Super Admin accounts."
+          />
+        )
+      ) : location.pathname === "/site-editor" ? (
+        user.role === "Super Admin" ? (
+          <SiteEditor />
+        ) : (
+          <AdminOnlyNotice
+            title="Platform owner only"
+            message="The Site Editor changes the public marketing pages and is limited to the platform owner."
           />
         )
       ) : location.pathname === "/subscriptions" || location.pathname === "/permissions" || location.pathname === "/lab" ? (

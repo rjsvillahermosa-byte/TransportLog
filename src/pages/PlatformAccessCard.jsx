@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { KeyRound, Plus, Trash2, UserCog, Copy, Loader2, ShieldAlert } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { KeyRound, Plus, Trash2, UserCog, Copy, Loader2, ShieldAlert, ChevronDown } from "lucide-react";
 import { Button, Input, Label, Select } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { getSupabaseClient } from "../lib/supabaseClient";
@@ -69,6 +69,25 @@ export function PlatformTeamCard() {
   };
 
   const platform = people.filter((p) => p.platform_role);
+  // Group by org so the list stays readable as tenants grow; each company
+  // collapses to one row (name + count) that expands to its members.
+  const groups = useMemo(() => {
+    const g = [];
+    const byOrg = {};
+    for (const p of people) {
+      const orgs = orgsOf(p.id);
+      const key = orgs.length ? orgs.join(" + ") : "__no_org";
+      (byOrg[key] = byOrg[key] || []).push(p);
+    }
+    for (const [label, rows] of Object.entries(byOrg)) {
+      g.push({ label: label === "__no_org" ? "No organization" : label, noOrg: label === "__no_org", rows });
+    }
+    return g.sort((a, b) => (a.noOrg ? 1 : 0) - (b.noOrg ? 1 : 0) || b.rows.length - a.rows.length);
+  }, [people, memberMap]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [openGroups, setOpenGroups] = useState({});
+  const toggleGroup = (label) => setOpenGroups((o) => ({ ...o, [label]: !o[label] }));
+
   return (
     <div className="bg-white rounded-3xl shadow-card p-5 mb-6">
       <h3 className="text-sm font-semibold text-cocoa mb-1 flex items-center gap-2">
@@ -80,28 +99,45 @@ export function PlatformTeamCard() {
         independent of any client organization.
       </p>
       <div className="space-y-2">
-        {people.map((p) => (
-          <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-2 border border-sand/60 rounded-xl px-3 py-2">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-cocoa truncate">{p.full_name}</p>
-              <p className="text-xs text-taupe truncate">
-                {p.email} · client role: {p.role}
-                {orgsOf(p.id).length
-                  ? ` · 🏢 ${orgsOf(p.id).join(" + ")}`
-                  : " · 🏢 no organization"}
-              </p>
-            </div>
-            <Select
-              value={p.platform_role || ""}
-              onChange={(e) => setRole(p.id, e.target.value)}
-              disabled={busy === p.id}
-              className="sm:w-80 flex-none"
+        {groups.map((g) => (
+          <div key={g.label}>
+            <button
+              onClick={() => toggleGroup(g.label)}
+              className="w-full flex items-center justify-between rounded-xl border border-sand/60 bg-cream/50 px-3 py-2 hover:border-brand/40 transition-colors"
             >
-              {PLATFORM_ROLES.map((r) => (
-                <option key={r.value} value={r.value}>{r.label}</option>
-              ))}
-            </Select>
-            {busy === p.id && <Loader2 className="w-4 h-4 animate-spin text-taupe" />}
+              <span className="text-sm font-semibold text-cocoa flex items-center gap-2">
+                <ChevronDown className={`w-4 h-4 text-taupe transition-transform ${openGroups[g.label] ? "" : "-rotate-90"}`} />
+                🏢 {g.label}
+              </span>
+              <span className="text-xs text-taupe">
+                {g.rows.length} account{g.rows.length === 1 ? "" : "s"}
+                {openGroups[g.label] ? " — click to collapse" : " — click to expand"}
+              </span>
+            </button>
+            {openGroups[g.label] && g.rows.map((p) => (
+              <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-2 border border-sand/60 rounded-xl px-3 py-2 mt-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-cocoa truncate">{p.full_name}</p>
+                  <p className="text-xs text-taupe truncate">
+                    {p.email} · client role: {p.role}
+                    {orgsOf(p.id).length
+                      ? ` · 🏢 ${orgsOf(p.id).join(" + ")}`
+                      : " · 🏢 no organization"}
+                  </p>
+                </div>
+                <Select
+                  value={p.platform_role || ""}
+                  onChange={(e) => setRole(p.id, e.target.value)}
+                  disabled={busy === p.id}
+                  className="sm:w-80 flex-none"
+                >
+                  {PLATFORM_ROLES.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </Select>
+                {busy === p.id && <Loader2 className="w-4 h-4 animate-spin text-taupe" />}
+              </div>
+            ))}
           </div>
         ))}
       </div>

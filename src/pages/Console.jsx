@@ -59,6 +59,7 @@ const SECTIONS = [
       { label: "R&D Lab", path: "/lab", icon: FlaskConical, desc: "Feature flags & experimental rollouts" },
       { label: "Audit Logs", path: "/audit-logs", icon: ScrollText, desc: "Who changed what, across every tenant" },
       { label: "System Usage", path: "/system-usage", icon: Activity, desc: "Seats, vehicles & activity per organization" },
+      { label: "Site Editor", path: "/site-editor", icon: Palette, desc: "Edit every word on the public landing & pricing pages" },
       { label: "Settings", path: "/settings", icon: Palette, desc: "Branding, fuel bands, users & data tools" },
     ],
   },
