@@ -79,7 +79,8 @@ function LimitsEditor({ org, memberCount, onCommit }) {
 export default function Organizations() {
   const toast = useToast();
   const [orgs, setOrgs] = useState([]);
-  const [memberCounts, setMemberCounts] = useState({}); // org_id -> count
+  const [memberCounts, setMemberCounts] = useState({}); // org_id -> active count
+  const [pendingCounts, setPendingCounts] = useState({}); // org_id -> pending count
   const [members, setMembers] = useState(null); // { org, rows } | null
   const [profileMap, setProfileMap] = useState({}); // user_id -> {full_name, email}
   const [linkId, setLinkId] = useState(""); // user to link into this org
@@ -104,10 +105,16 @@ export default function Organizations() {
       setIsPlatformSuper(true); // RLS only returns rows for platform supers
       const { data: mems } = await sb.from("organization_members").select("organization_id, status");
       const counts = {};
+      const pendingCounts = {};
       (mems || []).forEach((m) => {
-        counts[m.organization_id] = (counts[m.organization_id] || 0) + (m.status === "Active" ? 1 : 0);
+        if (m.status === "Active") {
+          counts[m.organization_id] = (counts[m.organization_id] || 0) + 1;
+        } else if (m.status === "Pending") {
+          pendingCounts[m.organization_id] = (pendingCounts[m.organization_id] || 0) + 1;
+        }
       });
       setMemberCounts(counts);
+      setPendingCounts(pendingCounts);
     } else {
       setIsPlatformSuper(false);
     }
@@ -350,6 +357,11 @@ export default function Organizations() {
                     >
                       <Users className="h-4 w-4" />
                       {memberCounts[o.id] ?? 0} active
+                      {(pendingCounts[o.id] ?? 0) > 0 && (
+                        <span className="ml-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-white">
+                          {pendingCounts[o.id]} pending
+                        </span>
+                      )}
                     </button>
                   </td>
                   <td className="px-4 py-3">
@@ -477,18 +489,36 @@ export default function Organizations() {
                           <option key={role} value={role}>{role}</option>
                         ))}
                       </Select>
-                      <button
-                        onClick={() =>
-                          setMemberField(r.id, {
-                            status: r.status === "Active" ? "Disabled" : "Active",
-                          })
-                        }
-                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                          r.status === "Active" ? "bg-mint text-brand" : "bg-red-50 text-red-600"
-                        }`}
-                      >
-                        {r.status}
-                      </button>
+                      {r.status === "Pending" ? (
+                        // Approval gate (0032): pending signups wait here.
+                        <>
+                          <button
+                            onClick={() => setMemberField(r.id, { status: "Active" })}
+                            className="rounded-full bg-brand px-3 py-1 text-xs font-bold text-white hover:bg-brand-dark"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => setMemberField(r.id, { status: "Disabled" })}
+                            className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600 hover:bg-red-100"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() =>
+                            setMemberField(r.id, {
+                              status: r.status === "Active" ? "Disabled" : "Active",
+                            })
+                          }
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                            r.status === "Active" ? "bg-mint text-brand" : "bg-red-50 text-red-600"
+                          }`}
+                        >
+                          {r.status}
+                        </button>
+                      )}
                       {!r.is_org_owner && (
                         <button
                           onClick={() => removeMember(r)}

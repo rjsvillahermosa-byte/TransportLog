@@ -90,6 +90,40 @@ function Shell() {
       </Routes>
     );
 
+  // Approval gate (0032): a signed-in user whose membership is Pending sees
+  // this instead of the app, until their org's admin approves them.
+  if (user.membership_status === "Pending") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-cream px-4">
+        <div className="w-full max-w-md rounded-3xl bg-white p-10 text-center shadow-card">
+          <img src="/logo.svg" alt="" className="mx-auto h-12 w-12 rounded-2xl" />
+          <h1 className="mt-4 font-heading text-xl font-bold text-cocoa">
+            Account created — awaiting approval
+          </h1>
+          <p className="mt-3 text-sm leading-relaxed text-mocha">
+            Your request to join your company's FleetFlow workspace is with their
+            administrator. You'll have full access as soon as they approve you.
+          </p>
+          <p className="mt-4 rounded-xl bg-cream px-4 py-3 text-xs text-taupe">
+            Signed in as <b className="text-cocoa">{user.email}</b>
+            <br />
+            Wrong company, or waiting too long? Contact your fleet administrator,
+            or sign out and register with your correct client code.
+          </p>
+          <button
+            onClick={async () => {
+              await auth.logout();
+              window.location.href = "/login";
+            }}
+            className="mt-6 text-xs font-bold uppercase tracking-wide text-brand hover:underline"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Layout user={user}>
       {/* Role gates — login-based, so they behave the same on any device. */}

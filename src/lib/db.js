@@ -115,6 +115,22 @@ const supabaseAuth = {
       await sb.auth.signOut();
       return null;
     }
+    // Approval gate (0032): surface the membership status so the shell can
+    // hold Pending users on an "awaiting approval" screen. Active platform
+    // staff (no org membership yet) pass through untouched.
+    if (prof) {
+      try {
+        const { data: mem } = await sb
+          .from("organization_members")
+          .select("status")
+          .eq("user_id", session.user.id)
+          .order("status", { ascending: true }) // Active < Pending < Disabled alphabetically
+          .limit(1);
+        prof.membership_status = mem?.[0]?.status || null;
+      } catch {
+        prof.membership_status = null;
+      }
+    }
     return (
       prof ?? {
         id: session.user.id,
