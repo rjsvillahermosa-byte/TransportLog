@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Briefcase, UserRound } from "lucide-react";
 import dayjs from "../lib/day";
 import { api, integrations, nextMissionId } from "../lib/db";
@@ -9,6 +9,7 @@ import { useToast } from "../components/Layout";
 import { cn } from "../lib/utils";
 import { useOrgPrefs, formatTimePref } from "../lib/orgPrefs";
 import { useFeatureFlag } from "../lib/access";
+import { getSupabaseClient } from "../lib/supabaseClient";
 
 const OTHERS = "__others__";
 
@@ -97,6 +98,34 @@ export default function NewBooking({ user }) {
   // free-text inputs globally or per client (pilot list in /lab).
   const presetsOn = useFeatureFlag("booking_presets", prefs?.organization_id);
   const effectivePrefs = presetsOn ? prefs : { ...prefs, location_presets: [] };
+  // QR safety (?org=CODE): the printed QR names the org it was made for. If
+  // the signed-in account belongs to a DIFFERENT org (shared front-desk
+  // computer), block submission — the booking would land in the wrong
+  // company. The 0005 trigger stamps the submitter's org, so this guard is
+  // the last line of defense against identity mixups.
+  const [params] = useSearchParams();
+  const qrOrgCode = (params.get("org") || "").trim().toUpperCase();
+  const [orgCode, setOrgCode] = useState("");
+  const [orgMismatch, setOrgMismatch] = useState(false);
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      if (!qrOrgCode) return;
+      try {
+        const sb = getSupabaseClient();
+        const { data } = await sb
+          .from("organizations")
+          .select("client_code")
+          .eq("id", prefs?.organization_id || "")
+          .maybeSingle();
+        if (live && data) {
+          setOrgCode(data.client_code);
+          setOrgMismatch(data.client_code !== qrOrgCode);
+        }
+      } catch { /* guard is best-effort; DB still stamps correctly */ }
+    })();
+    return () => { live = false; };
+  }, [qrOrgCode, prefs?.organization_id]);
   const navigate = useNavigate();
   const toast = useToast();
   const [mode, setMode] = useState("guest"); // "guest" | "errand"
@@ -139,6 +168,14 @@ export default function NewBooking({ user }) {
   };
 
   const submit = async (e) => {
+    // Wrong-org guard: QR made for another company + this account signs it.
+    if (orgMismatch) {
+      toast({
+        title: "Wrong organization",
+        description: `This QR is for ${qrOrgCode}, but you're signed in as ${orgCode}. Sign in with a ${qrOrgCode} account to book for that company.`,
+      });
+      return;
+    }
     e.preventDefault();
     if (mode === "guest" && !form.booking_type) return;
     if (mode === "errand" && (!form.requested_by || !form.department)) return;
@@ -210,6 +247,13 @@ export default function NewBooking({ user }) {
         ))}
       </div>
 
+      {orgMismatch && (
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <b>Wrong organization:</b> this booking QR is for <b>{qrOrgCode}</b>, but you're signed
+          in as <b>{orgCode}</b>. Submitting is blocked — sign in with a {qrOrgCode} account to book
+          for that company.
+        </div>
+      )}
       <form onSubmit={submit} className="space-y-5">
         {mode === "guest" ? (
           <section className="bg-white rounded-3xl shadow-card p-5">

@@ -1,9 +1,22 @@
-import { useState } from "react";
-import { Copy, Check, CalendarPlus, LayoutDashboard } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Copy, Check, CalendarPlus, LayoutDashboard, Car, ShieldCheck } from "lucide-react";
 import { Button } from "../components/ui";
 import { useToast } from "../components/Layout";
+import { getSupabaseClient } from "../lib/supabaseClient";
+import { loadOrgPrefs } from "../lib/orgPrefs";
 
-function QrCard({ icon: Icon, title, sub, url }) {
+// QR Codes — print-and-place codes for booking and vehicle identity.
+//
+// CLIENT SAFETY (the critical part): the booking QR never decides which org
+// receives a booking — the SIGNED-IN USER does (0005 trigger stamps the org
+// of whoever submits). So a Madison employee scanning any FleetFlow booking
+// QR always books into MAD-001. The QR below additionally carries ?org=
+// CODE, and the booking page warns loudly if the signed-in account belongs
+// to a DIFFERENT org than the QR — catching the shared-front-desk case
+// (computer still logged in as another company) before a wrong booking
+// happens. Vehicle QRs (/v/<token>) are per-vehicle and org-labeled.
+
+function QrCard({ icon: Icon, title, sub, url, badge }) {
   const toast = useToast();
   const [copied, setCopied] = useState(false);
   const img = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(url)}`;
@@ -21,7 +34,12 @@ function QrCard({ icon: Icon, title, sub, url }) {
         <Icon className="w-5 h-5 text-brand" />
       </div>
       <h3 className="text-base font-semibold text-cocoa">{title}</h3>
-      <p className="text-xs text-taupe mb-4">{sub}</p>
+      <p className="text-xs text-taupe mb-1">{sub}</p>
+      {badge && (
+        <p className="text-[11px] font-bold text-brand bg-mint/50 rounded-full px-2.5 py-0.5 inline-block mb-2">
+          {badge}
+        </p>
+      )}
       <div className="inline-block border border-sand/70 p-2 bg-white rounded-lg">
         <img src={img} alt={`${title} QR Code`} className="w-52 h-52 mx-auto" />
       </div>
@@ -36,6 +54,34 @@ function QrCard({ icon: Icon, title, sub, url }) {
 
 export default function QrCodes() {
   const origin = window.location.origin;
+  const [orgLabel, setOrgLabel] = useState("");
+  const [orgCode, setOrgCode] = useState("");
+
+  // The booking QR is client-specific: it carries this account's org code and
+  // is labeled with the org name. Where does the org come from? The signed-in
+  // user's own membership (RLS-safe — you can only ever read your own).
+  useEffect(() => {
+    (async () => {
+      try {
+        const prefs = await loadOrgPrefs();
+        if (prefs?.organization_id) {
+          const sb = getSupabaseClient();
+          const { data } = await sb
+            .from("organizations")
+            .select("name, client_code")
+            .eq("id", prefs.organization_id)
+            .maybeSingle();
+          if (data) {
+            setOrgLabel(`${data.name} · ${data.client_code}`);
+            setOrgCode(data.client_code);
+          }
+        }
+      } catch {
+        /* platform-super without org membership — generic QR is fine */
+      }
+    })();
+  }, []);
+
   return (
     <div>
       <h1 className="text-2xl font-heading font-bold text-cocoa">QR Codes</h1>
@@ -45,14 +91,37 @@ export default function QrCodes() {
           icon={CalendarPlus}
           title="Book a Reservation"
           sub="Place at the Front Office desk"
-          url={`${origin}/new-booking`}
+          url={`${origin}/new-booking${orgCode ? `?org=${encodeURIComponent(orgCode)}` : ""}`}
+          badge={orgLabel ? `Books into: ${orgLabel}` : "Books into: the signed-in account's org"}
         />
         <QrCard
           icon={LayoutDashboard}
           title="Driver Dashboard"
           sub="Place in vehicle or dispatch board"
           url={`${origin}/`}
+          badge={orgLabel}
         />
+      </div>
+
+      <div className="mt-8 rounded-3xl border border-brand/30 bg-mint/30 p-5 max-w-2xl">
+        <p className="flex items-center gap-2 text-sm font-bold text-cocoa">
+          <ShieldCheck className="h-4 w-4 text-brand" /> How org safety works
+        </p>
+        <ul className="mt-2 space-y-1.5 text-xs text-mocha list-disc list-inside">
+          <li>
+            A booking always lands in the organization of the <b>signed-in account</b> — never of the
+            QR itself. Madison staff scanning any booking QR book into Madison.
+          </li>
+          <li>
+            This QR carries this account's client code, and the booking page <b>warns if the
+            signed-in account belongs to a different company</b> than the QR — catching
+            shared-computer mixups before they happen.
+          </li>
+          <li>
+            Each <b>vehicle</b> has its own QR (Fleet → vehicle → Asset Record) — drivers scan it to
+            verify the physical vehicle and complete the pre-mission checklist.
+          </li>
+        </ul>
       </div>
     </div>
   );

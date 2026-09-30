@@ -57,7 +57,11 @@ export function LoginPage() {
     setLoading(true);
     try {
       await auth.loginViaEmailPassword(email, password);
-      window.location.href = "/";
+      // Vehicle-QR scans bounce through login with a stashed destination —
+      // return the driver to their scan instead of the missions list.
+      const postLogin = sessionStorage.getItem("ff:postLoginRedirect");
+      sessionStorage.removeItem("ff:postLoginRedirect");
+      window.location.href = postLogin || "/";
     } catch (p) {
       setError(p.message || "Invalid email or password");
     } finally {

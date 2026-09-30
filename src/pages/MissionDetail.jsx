@@ -228,6 +228,12 @@ export default function MissionDetail() {
   const [log, setLog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [startOdo, setStartOdo] = useState(null);
+  const [baselineOdo, setBaselineOdo] = useState(null);
+  // 0030 vehicle QR binding: resolved vehicle row + today's checklist (from
+  // the /v/<token> scan page). vehicle_qr_verified=true means the driver
+  // scanned THAT physical vehicle's QR and completed the walk-around.
+  const [vehicleId, setVehicleId] = useState(null);
+  const [checklistData, setChecklistData] = useState(null);
   const [endOdo, setEndOdo] = useState(null);
   const [remarks, setRemarks] = useState("");
   const [busy, setBusy] = useState(false);
@@ -259,6 +265,31 @@ export default function MissionDetail() {
       if (logs.length > 0) {
         setLog(logs[0]);
         setRemarks(logs[0].remarks || "");
+      }
+      // Baseline ODO of the assigned vehicle — shown as the suggested Start
+      // ODO when the mission hasn't started and no reading exists yet. Also
+      // resolves the vehicle row for the QR/checklist binding (0030).
+      if (r?.vehicle_plate && !logs.length) {
+        try {
+          const vehicles = await api.entities.Vehicle.filter({ plate_number: r.vehicle_plate });
+          if (vehicles[0]) {
+            if (vehicles[0].start_odometer_km != null) {
+              setBaselineOdo(vehicles[0].start_odometer_km);
+            }
+            setVehicleId(vehicles[0].id);
+            const cl = sessionStorage.getItem(`ff:checklist:${vehicles[0].id}`);
+            if (cl) {
+              const parsed = JSON.parse(cl);
+              // Valid for the working day — a morning walk-around covers the
+              // day's missions in the same vehicle.
+              if (Date.now() - parsed.at < 12 * 3600 * 1000 && parsed.answers) {
+                setChecklistData(parsed);
+              }
+            }
+          }
+        } catch {
+          /* optional field — absence is fine */
+        }
       }
     } catch (e) {
       console.error(e);
@@ -295,6 +326,15 @@ export default function MissionDetail() {
       });
       return;
     }
+    // 0030 pre-mission gate: the driver must have scanned the vehicle QR and
+    // completed the walk-around checklist (same vehicle, last 12 hours).
+    if (vehicleId && !checklistData) {
+      toast({
+        title: "Pre-mission checklist required",
+        description: "Scan the QR code inside this vehicle and complete the checklist before starting.",
+      });
+      return;
+    }
     setBusy(true);
     try {
       const data = {
@@ -303,6 +343,10 @@ export default function MissionDetail() {
         driver_name: request.assigned_driver_name || "Driver",
         driver_id: request.assigned_driver_id || "",
         vehicle_plate: request.vehicle_plate || "",
+        vehicle_id: vehicleId || null,
+        vehicle_qr_verified: !!checklistData,
+        checklist: checklistData?.answers || null,
+        checklist_completed_at: checklistData ? new Date(checklistData.at).toISOString() : null,
         time_out: new Date().toISOString(),
         odo_start_photo: startOdo.photoUrl,
         start_odometer: startOdo.reading,
@@ -479,7 +523,14 @@ export default function MissionDetail() {
       {!done && (
         <div className="space-y-4">
           {!inProgress && (
-            <OdoCapture label="Start ODO — before the trip" onCaptured={setStartOdo} />
+            <OdoCapture
+              label={
+                baselineOdo != null
+                  ? `Start ODO — before the trip (vehicle baseline: ${Number(baselineOdo).toLocaleString()} km)`
+                  : "Start ODO — before the trip"
+              }
+              onCaptured={setStartOdo}
+            />
           )}
           {inProgress && (
             <>

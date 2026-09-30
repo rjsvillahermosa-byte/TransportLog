@@ -28,6 +28,7 @@ import MasterPermissions from "./pages/MasterPermissions";
 import RandDLab from "./pages/RandDLab";
 import Landing from "./pages/Landing";
 import Pricing from "./pages/Pricing";
+import VehicleScan from "./pages/VehicleScan";
 import { LoginPage } from "./pages/Auth";
 import { RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./pages/AuthExtra";
 import { useAccessMatrix } from "./lib/access";
@@ -64,6 +65,10 @@ function Shell() {
   if (isLanding) return <Landing />;
   // Public pricing page — visible logged-out (marketing surface) and in-app.
   if (location.pathname === "/pricing") return <Pricing />;
+  // Vehicle QR landing (/v/<token>): requires login (the page redirects to
+  // /login itself and returns post-login), but must be reachable BEFORE the
+  // generic auth redirect so the token survives.
+  if (location.pathname.startsWith("/v/")) return <VehicleScan />;
   if (!user && !isAuthPath) return <Navigate to="/login" replace />;
   if (user && isAuthPath) return <Navigate to="/" replace />;
 

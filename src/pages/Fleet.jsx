@@ -925,6 +925,37 @@ function AssetRecordModal({ open, onClose, vehicle, services }) {
               : "Not set"}
           </p>
         </div>
+        {vehicle?.vehicle_qr_token && (
+          <div className="col-span-2 border-t border-sand/70 pt-3">
+            <p className="text-xs text-taupe mb-2">Vehicle QR — print & stick inside the windshield</p>
+            <div className="flex items-center gap-4">
+              <div className="border border-sand rounded-lg p-2 bg-white">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+                    `${window.location.origin}/v/${vehicle.vehicle_qr_token}`
+                  )}`}
+                  alt={`QR for ${vehicle.plate_number}`}
+                  className="w-36 h-36"
+                />
+              </div>
+              <div className="min-w-0 text-xs text-taupe">
+                <p>
+                  Drivers scan this to verify the physical vehicle and run the
+                  pre-mission checklist before starting.
+                </p>
+                <p className="mt-1 break-all font-mono text-[10px]">/v/{vehicle.vehicle_qr_token}</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2"
+                  onClick={() => window.print()}
+                >
+                  Print this page
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         {odoAudit.length > 0 && (
           <div className="col-span-2 border-t border-sand/70 pt-2">
             <p className="text-xs text-taupe mb-1.5">Baseline ODO change log</p>
