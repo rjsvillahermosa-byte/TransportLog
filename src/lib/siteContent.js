@@ -38,6 +38,80 @@ export const PRICING_DEFAULTS = {
   pricing_footer: "FleetFlow — intelligent fleet & transport management system · fleet.flowworkssystems.com",
 };
 
+// The four plan cards — every field editable in the Site Editor (pricing tab).
+export const PLAN_DEFAULTS = [
+  {
+    id: "trial",
+    name: "Trial",
+    tagline: "Kick the tires, free for 14 days",
+    price: "₱0",
+    per: "/ 14 days",
+    caps: "🚗 2 vehicles · 👤 3 seats",
+    cta: "Start free trial",
+    highlight: false,
+    includes: [
+      "Missions, New Booking & History",
+      "QR-code booking links",
+      "Fuel logging with price bands",
+      "Odometer photo capture",
+      "Email support",
+    ],
+  },
+  {
+    id: "starter",
+    name: "Starter",
+    tagline: "For single-property hotels getting off paper",
+    price: "₱1,500",
+    per: "/ month",
+    caps: "🚗 5 vehicles · 👤 8 seats",
+    cta: "Choose Starter",
+    highlight: false,
+    includes: [
+      "Driver management & assignments",
+      "EVERYTHING IN TRIAL, PLUS:",
+      "Service logs & renewal reminders",
+      "Saved reports (print-ready)",
+      "Role-based access (Supervisor+)",
+    ],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    tagline: "For growing fleets that need the full picture",
+    price: "₱3,500",
+    per: "/ month",
+    caps: "🚗 20 vehicles · 👤 25 seats",
+    cta: "Choose Pro",
+    highlight: true,
+    includes: [
+      "Fuel integrity audit & fraud flags",
+      "EVERYTHING IN STARTER, PLUS:",
+      "AI odometer photo scanning",
+      "Booking presets & client preferences",
+      "Mileage analytics & breakdowns",
+      "Priority support",
+    ],
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    tagline: "For chains, transport firms & multi-site operations",
+    price: "Custom",
+    per: "talk to us",
+    caps: "🚗 100 vehicles · 👤 200 seats",
+    cta: "Contact us",
+    highlight: false,
+    includes: [
+      "Up to 100 vehicles · 200 seats (or more)",
+      "EVERYTHING IN PRO, PLUS:",
+      "Multi-organization management",
+      "API access for PMS / website",
+      "Custom onboarding & welcome kit",
+      "Dedicated support channel",
+    ],
+  },
+];
+
 // Feature cards' copy is editable too (titles + bodies, icons stay fixed).
 export const FEATURE_DEFAULTS = [
   { title: "Bookings & dispatch", body: "Log guest transfers and department errands in seconds, assign a driver and vehicle, and follow every mission from pending to completed." },
@@ -80,6 +154,12 @@ export async function saveSiteContent(key, patch) {
   if (error) throw error;
   CACHE[key] = next;
   return next;
+}
+
+/** Plans live in the 'pricing' doc as `plans: [...]` (structured, editable). */
+export async function loadPlans() {
+  const doc = await loadSiteContent("pricing");
+  return Array.isArray(doc.plans) && doc.plans.length === 4 ? doc.plans : PLAN_DEFAULTS;
 }
 
 /** React hook: merged defaults + saved overrides for a page key. */

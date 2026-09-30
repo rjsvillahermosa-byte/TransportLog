@@ -5,6 +5,7 @@ import { useToast } from "../components/Layout";
 import {
   LANDING_DEFAULTS,
   PRICING_DEFAULTS,
+  PLAN_DEFAULTS,
   FEATURE_DEFAULTS,
   loadSiteContent,
   saveSiteContent,
@@ -61,6 +62,7 @@ export default function SiteEditor() {
   const [tab, setTab] = useState("landing");
   const [doc, setDoc] = useState({ ...LANDING_DEFAULTS, ...PRICING_DEFAULTS });
   const [features, setFeatures] = useState(FEATURE_DEFAULTS);
+  const [plans, setPlans] = useState(PLAN_DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -75,6 +77,9 @@ export default function SiteEditor() {
       if (Array.isArray(landing?.features) && landing.features.length === 6) {
         setFeatures(landing.features);
       }
+      if (Array.isArray(pricing?.plans) && pricing.plans.length === 4) {
+        setPlans(pricing.plans);
+      }
       setLoading(false);
     })();
   }, []);
@@ -86,7 +91,7 @@ export default function SiteEditor() {
     try {
       await saveSiteContent("landing", { ...doc, features });
       const { features: _f, ...pricingOnly } = doc;
-      await saveSiteContent("pricing", pricingOnly);
+      await saveSiteContent("pricing", { ...pricingOnly, plans });
       setDirty(false);
       toast({ title: "Published", description: "The public pages now show your copy." });
     } catch (e) {
@@ -94,6 +99,15 @@ export default function SiteEditor() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const setPlan = (i, field, value) => {
+    setPlans((arr) => arr.map((p, j) => (j === i ? { ...p, [field]: value } : p)));
+    setDirty(true);
+  };
+  const setPlanIncludes = (i, raw) => {
+    setPlans((arr) => arr.map((p, j) => (j === i ? { ...p, includes: raw.split("\n") } : p)));
+    setDirty(true);
   };
 
   if (loading) {
@@ -174,9 +188,50 @@ export default function SiteEditor() {
             </div>
           </>
         ) : (
-          PRICING_FIELDS.map(([k, label, hint]) => (
-            <Field key={k} label={label} hint={hint} value={doc[k] ?? ""} onChange={set(k)} multiline={k === "pricing_body"} />
-          ))
+          <>
+            {PRICING_FIELDS.map(([k, label, hint]) => (
+              <Field key={k} label={label} hint={hint} value={doc[k] ?? ""} onChange={set(k)} multiline={k === "pricing_body"} />
+            ))}
+            <div className="border-t border-sand/70 pt-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-taupe mb-3">
+                Plan cards — every element (price, caps, inclusions, button, highlight)
+              </p>
+              <div className="space-y-4">
+                {plans.map((p, i) => (
+                  <div key={p.id || i} className="rounded-2xl border border-sand/60 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-cocoa">{p.name || `Plan ${i + 1}`}</p>
+                      <label className="flex items-center gap-1.5 text-xs text-taupe">
+                        <input
+                          type="checkbox"
+                          checked={!!p.highlight}
+                          onChange={(e) => setPlan(i, "highlight", e.target.checked)}
+                          className="h-3.5 w-3.5 accent-[#1A2B48]"
+                        />
+                        Most popular badge
+                      </label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Plan name" value={p.name || ""} onChange={(v) => setPlan(i, "name", v)} />
+                      <Field label="Button text (CTA)" value={p.cta || ""} onChange={(v) => setPlan(i, "cta", v)} />
+                    </div>
+                    <Field label="Tagline" value={p.tagline || ""} onChange={(v) => setPlan(i, "tagline", v)} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Price (e.g. ₱1,500 / Custom)" value={p.price || ""} onChange={(v) => setPlan(i, "price", v)} />
+                      <Field label="Period (e.g. / month)" value={p.per || ""} onChange={(v) => setPlan(i, "per", v)} />
+                    </div>
+                    <Field label="Caps line (vehicles · seats)" value={p.caps || ""} onChange={(v) => setPlan(i, "caps", v)} />
+                    <Field
+                      label="Inclusions (one per line — an ALL-CAPS line renders as a section label)"
+                      value={(p.includes || []).join("\n")}
+                      onChange={(v) => setPlanIncludes(i, v)}
+                      multiline
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
         )}
       </div>
       <p className="text-xs text-taupe mt-3">
