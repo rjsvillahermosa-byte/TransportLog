@@ -23,6 +23,11 @@ export default function TagCanvas({ layout, record, scale, qrBaseUrl, selectedId
 
   const fieldAt = (id) => layout.fields.find((f) => f.id === id);
 
+  // onCommit replaces hist.present wholesale, so every commit must carry the
+  // full layout shape ({w, h, fields, style}) — never a bare fields array,
+  // or the next render's `layout.fields` is undefined and the canvas crashes.
+  const commitFields = (fields, coalesce) => onCommit({ ...layout, fields }, coalesce);
+
   const beginDrag = (e, field, mode, handle) => {
     e.stopPropagation();
     onSelect(field.id);
@@ -57,7 +62,7 @@ export default function TagCanvas({ layout, record, scale, qrBaseUrl, selectedId
           return null;
         }
       }
-      onCommit(
+      commitFields(
         layout.fields.map((f) => (f.id === cur.id ? { ...f, x: cur.x, y: cur.y, w: cur.w, h: cur.h } : f)),
         d.mode === "move" ? `move:${d.id}` : `resize:${d.id}:${d.handle}`
       );
@@ -72,7 +77,7 @@ export default function TagCanvas({ layout, record, scale, qrBaseUrl, selectedId
     const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
     const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
     const box = moveBox(field, dx, dy);
-    onCommit(
+    commitFields(
       layout.fields.map((f) => (f.id === field.id ? { ...f, x: box.x, y: box.y } : f)),
       `nudge:${field.id}`
     );
@@ -115,12 +120,12 @@ export default function TagCanvas({ layout, record, scale, qrBaseUrl, selectedId
                 defaultValue={f.value}
                 className="absolute inset-0 w-full h-full resize-none border border-brand bg-white/95 p-0.5"
                 style={{ fontSize: (f.fontSize || 10) * (scale / 96) }}
-                onBlur={(e) => { onCommit(layout.fields.map((x) => x.id === f.id ? { ...x, value: e.target.value } : x)); setEditingId(null); }}
+                onBlur={(e) => { commitFields(layout.fields.map((x) => x.id === f.id ? { ...x, value: e.target.value } : x)); setEditingId(null); }}
                 onKeyDown={(e) => {
                   if (e.key === "Escape") setEditingId(null);
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    onCommit(layout.fields.map((x) => x.id === f.id ? { ...x, value: e.target.value } : x));
+                    commitFields(layout.fields.map((x) => x.id === f.id ? { ...x, value: e.target.value } : x));
                     setEditingId(null);
                   }
                 }}

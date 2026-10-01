@@ -46,13 +46,17 @@ export default function TagEditor() {
 
   const selectedField = layout.fields.find((f) => f.id === selectedId);
 
+  // commit() replaces the layout wholesale, so every call must carry the
+  // full {w, h, fields, style} shape — never a bare fields array.
+  const commitFields = (fields) => commit({ ...layout, fields });
+
   const toggleField = (id) => {
-    commit(layout.fields.map((f) => (f.id === id ? { ...f, visible: !f.visible } : f)));
+    commitFields(layout.fields.map((f) => (f.id === id ? { ...f, visible: !f.visible } : f)));
   };
 
   const updateSelected = (patch) => {
     if (!selectedField) return;
-    commit(layout.fields.map((f) => (f.id === selectedField.id ? { ...f, ...patch } : f)));
+    commitFields(layout.fields.map((f) => (f.id === selectedField.id ? { ...f, ...patch } : f)));
   };
 
   const applySize = (sizeLabel) => {
