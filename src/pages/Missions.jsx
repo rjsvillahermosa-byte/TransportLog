@@ -118,28 +118,43 @@ function MissionCard({ request: r, vehicles, onDelete, onChanged }) {
             <div className="min-w-0 flex-1">
               <p className="text-taupe">Vehicle</p>
               {assigningVehicle ? (
-                <Select
-                  autoFocus
-                  disabled={busy}
-                  defaultValue={r.vehicle_plate || ""}
-                  onChange={assignVehicle}
-                  onClick={(e) => e.stopPropagation()}
-                  onBlur={() => setAssigningVehicle(false)}
-                  className="h-6 py-0 text-xs"
-                >
-                  <option value="">{busy ? "Saving…" : "— Unassign —"}</option>
-                  {vehicles
-                    // Always include the currently-assigned vehicle even if its
-                    // status isn't "available" (e.g. it shows in_use because
-                    // it's assigned to THIS mission) — otherwise reopening the
-                    // picker on an already-assigned mission looks broken/empty.
-                    .filter((v) => v.status === "available" || v.plate_number === r.vehicle_plate)
-                    .map((v) => (
-                      <option key={v.id} value={v.plate_number}>
-                        {v.plate_number} — {v.model || v.unit_name || ""}
-                      </option>
-                    ))}
-                </Select>
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Select
+                    autoFocus
+                    disabled={busy}
+                    defaultValue={r.vehicle_plate || ""}
+                    onChange={assignVehicle}
+                    // No onBlur-to-close here: in some browsers, opening the
+                    // native <select> dropdown itself blurs the element,
+                    // which used to unmount this before a choice could be
+                    // made — the dropdown would "disappear right away" on
+                    // the very click meant to open it. Cancelling now goes
+                    // through the explicit × button below instead.
+                    className="h-6 py-0 text-xs"
+                  >
+                    <option value="">{busy ? "Saving…" : "— Unassign —"}</option>
+                    {vehicles
+                      // Always include the currently-assigned vehicle even if its
+                      // status isn't "available" (e.g. it shows in_use because
+                      // it's assigned to THIS mission) — otherwise reopening the
+                      // picker on an already-assigned mission looks broken/empty.
+                      .filter((v) => v.status === "available" || v.plate_number === r.vehicle_plate)
+                      .map((v) => (
+                        <option key={v.id} value={v.plate_number}>
+                          {v.plate_number} — {v.model || v.unit_name || ""}
+                        </option>
+                      ))}
+                  </Select>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setAssigningVehicle(false)}
+                    className="text-taupe hover:text-mocha flex-none"
+                    title="Cancel"
+                  >
+                    ×
+                  </button>
+                </div>
               ) : (
                 <button
                   onClick={(e) => {
