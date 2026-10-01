@@ -26,6 +26,7 @@ import { cn } from "../lib/utils";
 import { auth, drainQueue, useOnline, usePendingCount, onDataChange } from "../lib/db";
 import VoiceAssistant from "./VoiceAssistant";
 import { useBranding } from "../lib/branding";
+import { useOrgLogo } from "../lib/orgLogo";
 import { useAccessMatrix } from "../lib/access";
 
 // Grouped nav — sections mirror the Super Admin Console map. Flat order
@@ -141,6 +142,11 @@ function SyncIndicator() {
 
 export default function Layout({ user, children }) {
   const brand = useBranding();
+  const orgLogo = useOrgLogo();
+  // A real per-org logo (0036, DB-backed, synced across every member/device)
+  // outranks the Super Admin's device-local Branding Studio default.
+  const headerLogo = orgLogo?.logo_url || brand.logo;
+  const headerName = orgLogo?.name || brand.name;
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -260,10 +266,10 @@ export default function Layout({ user, children }) {
             </div>
 
             <div ref={brandRef} className="flex items-center gap-2.5 min-w-0 flex-none">
-              {brand.logo ? (
+              {headerLogo ? (
                 <img
-                  src={brand.logo}
-                  alt="Logo"
+                  src={headerLogo}
+                  alt={`${headerName} logo`}
                   style={{ width: brand.logoSize || 36, height: brand.logoSize || 36 }}
                   className="rounded-2xl object-cover border border-sand bg-white flex-none"
                 />
@@ -278,12 +284,12 @@ export default function Layout({ user, children }) {
                 />
               )}
               <span className="font-heading text-lg font-bold text-cocoa truncate max-w-[170px] xl:max-w-[240px]">
-                {!brand.logo && brand.name === "FleetFlow" ? (
+                {!headerLogo && headerName === "FleetFlow" ? (
                   <>
                     Fleet<span className="text-brand">Flow</span>
                   </>
                 ) : (
-                  brand.name
+                  headerName
                 )}
               </span>
             </div>

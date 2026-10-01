@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Building2, Plus, RefreshCw, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
+import { Building2, ImagePlus, Plus, RefreshCw, ShieldCheck, Trash2, UserPlus, Users, X } from "lucide-react";
 import { Button, Input, Label, Modal, Select } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { getSupabaseClient } from "../lib/supabaseClient";
@@ -92,6 +92,7 @@ export default function Organizations() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [isPlatformSuper, setIsPlatformSuper] = useState(false);
+  const [logoBusy, setLogoBusy] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -169,6 +170,45 @@ export default function Organizations() {
       return;
     }
     setOrgs((rows) => rows.map((o) => (o.id === orgId ? { ...o, ...patch } : o)));
+  };
+
+  const uploadLogo = async (org, file) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Not an image file" });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "Logo too large", description: "Please use an image under 2MB." });
+      return;
+    }
+    setLogoBusy(org.id);
+    try {
+      const sb = getSupabaseClient();
+      const ext = (file.name.split(".").pop() || "png").toLowerCase();
+      // Fixed filename ("logo") so re-uploads overwrite in place instead of
+      // littering the bucket; upsert:true lets the same path be rewritten.
+      const path = `uploads/${org.id}/logo.${ext}`;
+      const { error: upErr } = await sb.storage
+        .from("fleetflow-media")
+        .upload(path, file, { upsert: true });
+      if (upErr) throw new Error(upErr.message);
+      const { data } = sb.storage.from("fleetflow-media").getPublicUrl(path);
+      // Cache-bust so the new image shows immediately instead of the old one
+      // lingering from the browser/CDN cache at the same URL.
+      const logo_url = `${data.publicUrl}?v=${Date.now()}`;
+      await setPlanField(org.id, { logo_url });
+      toast({ title: `Logo updated for ${org.name}` });
+    } catch (e) {
+      toast({ title: "Logo upload failed", description: e.message });
+    } finally {
+      setLogoBusy("");
+    }
+  };
+
+  const removeLogo = async (org) => {
+    if (!window.confirm(`Remove ${org.name}'s logo? The login page and header fall back to the default FleetFlow mark.`)) return;
+    await setPlanField(org.id, { logo_url: null });
   };
 
   const openMembers = async (org) => {
@@ -315,6 +355,7 @@ export default function Organizations() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-sand text-left text-xs uppercase tracking-wide text-taupe">
+                <th className="px-4 py-3">Logo</th>
                 <th className="px-4 py-3">Client code</th>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Plan</th>
@@ -327,6 +368,40 @@ export default function Organizations() {
             <tbody>
               {orgs.map((o) => (
                 <tr key={o.id} className="border-b border-sand/60 last:border-0">
+                  <td className="px-4 py-3">
+                    <label className="group relative block h-10 w-10 cursor-pointer rounded-xl border border-sand/60 overflow-hidden bg-cream/60">
+                      {o.logo_url ? (
+                        <img src={o.logo_url} alt={`${o.name} logo`} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-taupe">
+                          <ImagePlus className="h-4 w-4" />
+                        </span>
+                      )}
+                      <span className="absolute inset-0 hidden items-center justify-center bg-black/40 text-white group-hover:flex">
+                        {logoBusy === o.id ? (
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <ImagePlus className="h-3.5 w-3.5" />
+                        )}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={logoBusy === o.id}
+                        onChange={(e) => { uploadLogo(o, e.target.files?.[0]); e.target.value = ""; }}
+                      />
+                    </label>
+                    {o.logo_url && (
+                      <button
+                        type="button"
+                        onClick={() => removeLogo(o)}
+                        className="mt-1 inline-flex items-center gap-0.5 text-[10px] text-taupe hover:text-red-600"
+                      >
+                        <X className="h-2.5 w-2.5" /> remove
+                      </button>
+                    )}
+                  </td>
                   <td className="px-4 py-3 font-mono font-bold text-brand">{o.client_code}</td>
                   <td className="px-4 py-3">
                     <p className="font-medium text-cocoa">{o.name}</p>
@@ -571,7 +646,7 @@ export default function Organizations() {
                   <UserPlus className="h-3.5 w-3.5" /> Link
                 </Button>
               </div>
-            </div>}
+            </div>
           </div>
         )}
       </Modal>

@@ -1,10 +1,56 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Car, Mail } from "lucide-react";
 import { Button, Input, Label } from "../components/ui";
 import { auth } from "../lib/db";
 import { useBranding } from "../lib/branding";
+import { getSupabaseClient } from "../lib/supabaseClient";
 import LiveBackground from "../components/LiveBackground";
+
+const CLIENT_CODE_KEY = "fleetflow:clientCode";
+
+// White-label lookup for the login/register screens: an org's own client
+// code (same one used to join via Register) resolves that org's real logo +
+// name from the DB — unlike the Super Admin's Branding Studio (localStorage,
+// device-local, platform-wide), this is per-client and works for anyone on
+// any device who knows/remembers the code. Remembered locally so a returning
+// user of that org sees their branding again without retyping it.
+function useClientBrand() {
+  const [code, setCode] = useState(() => {
+    try { return localStorage.getItem(CLIENT_CODE_KEY) || ""; } catch { return ""; }
+  });
+  const [org, setOrg] = useState(null); // { client_code, name, plan_status, logo_url }
+  const [looking, setLooking] = useState(false);
+
+  useEffect(() => {
+    const trimmed = code.trim();
+    if (trimmed.length < 3) {
+      setOrg(null);
+      return;
+    }
+    let alive = true;
+    setLooking(true);
+    const t = setTimeout(async () => {
+      try {
+        const sb = getSupabaseClient();
+        const { data } = await sb.rpc("lookup_client_code", { p_code: trimmed });
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!alive) return;
+        setOrg(row || null);
+        if (row) {
+          try { localStorage.setItem(CLIENT_CODE_KEY, trimmed); } catch {}
+        }
+      } catch {
+        if (alive) setOrg(null);
+      } finally {
+        if (alive) setLooking(false);
+      }
+    }, 400);
+    return () => { alive = false; clearTimeout(t); };
+  }, [code]);
+
+  return { code, setCode, org, looking };
+}
 
 function GoogleIcon() {
   return (
@@ -19,13 +65,32 @@ function GoogleIcon() {
 
 export function AuthLayout({ icon: Icon = Car, title, subtitle, footer, children }) {
   const brand = useBranding();
+  const { code, setCode, org, looking } = useClientBrand();
+  const logoUrl = org?.logo_url || brand.logo;
+  const displayName = org?.name || brand.name;
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10">
       <LiveBackground />
       <div className="w-full max-w-sm">
+        <div className="mb-3">
+          <Input
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            placeholder="Company code (optional)"
+            className="text-center text-xs !h-8"
+          />
+          {org && (
+            <p className="text-center text-[11px] text-brand mt-1 font-medium">
+              Signing in to {org.name}
+            </p>
+          )}
+          {!org && !looking && code.trim().length >= 3 && (
+            <p className="text-center text-[11px] text-taupe mt-1">Code not recognized</p>
+          )}
+        </div>
         <div className="flex flex-col items-center mb-6">
-          {brand.logo ? (
-            <img src={brand.logo} alt="Logo" className="w-14 h-14 rounded-3xl object-cover border border-sand mb-3 shadow-card" />
+          {logoUrl ? (
+            <img src={logoUrl} alt={`${displayName} logo`} className="w-14 h-14 rounded-3xl object-cover border border-sand mb-3 shadow-card" />
           ) : (
             // No custom logo uploaded — show the TransportLog Brand Kit mark
             // (navy tile / orange pin / white arc), same asset as the favicon.
@@ -37,7 +102,7 @@ export function AuthLayout({ icon: Icon = Car, title, subtitle, footer, children
         <div className="bg-white rounded-3xl border border-sand/70 p-6 shadow-card">{children}</div>
         {footer && <div className="text-center text-sm text-taupe mt-4">{footer}</div>}
         <p className="text-center text-xs text-taupe mt-6">
-          {brand.name} — intelligent fleet & transport management system
+          {displayName} — intelligent fleet & transport management system
         </p>
       </div>
     </div>
