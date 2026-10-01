@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Copy, Check, CalendarPlus, LayoutDashboard, Car, ShieldCheck } from "lucide-react";
-import QRCodeStyling from "qr-code-styling";
 import { Button } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { getSupabaseClient } from "../lib/supabaseClient";
 import { loadOrgPrefs } from "../lib/orgPrefs";
+import BrandedQr from "../components/BrandedQr";
 
 // QR Codes — print-and-place codes for booking and vehicle identity.
 //
@@ -20,43 +20,6 @@ import { loadOrgPrefs } from "../lib/orgPrefs";
 function QrCard({ icon: Icon, title, sub, url, badge, logoUrl }) {
   const toast = useToast();
   const [copied, setCopied] = useState(false);
-  const qrContainerRef = useRef(null);
-  const qrInstanceRef = useRef(null);
-
-  // Real logo integration, not a sticker: qr-code-styling reserves the
-  // logo's square footprint as part of generating the code itself (and
-  // raises error correction to compensate), instead of a CSS image floated
-  // on top of a QR <img> that has no idea it's being partially covered.
-  useEffect(() => {
-    if (!qrContainerRef.current) return;
-    const options = {
-      width: 208,
-      height: 208,
-      data: url,
-      margin: 4,
-      qrOptions: { errorCorrectionLevel: logoUrl ? "H" : "M" },
-      dotsOptions: { type: "square", color: "#2b2420" },
-      cornersSquareOptions: { type: "square", color: "#2b2420" },
-      cornersDotOptions: { type: "square", color: "#2b2420" },
-      backgroundOptions: { color: "#ffffff" },
-      ...(logoUrl && {
-        image: logoUrl,
-        imageOptions: {
-          crossOrigin: "anonymous",
-          hideBackgroundDots: true,
-          imageSize: 0.32,
-          margin: 3,
-        },
-      }),
-    };
-    if (!qrInstanceRef.current) {
-      qrInstanceRef.current = new QRCodeStyling(options);
-      qrContainerRef.current.innerHTML = "";
-      qrInstanceRef.current.append(qrContainerRef.current);
-    } else {
-      qrInstanceRef.current.update(options);
-    }
-  }, [url, logoUrl]);
 
   const copy = async () => {
     await navigator.clipboard.writeText(url);
@@ -86,7 +49,7 @@ function QrCard({ icon: Icon, title, sub, url, badge, logoUrl }) {
         </div>
       )}
       <div className="inline-block border border-sand/70 p-2 bg-white rounded-lg">
-        <div ref={qrContainerRef} className="w-52 h-52" />
+        <BrandedQr url={url} logoUrl={logoUrl} size={208} />
       </div>
       <p className="text-xs text-taupe break-all mt-3 mb-4">{url}</p>
       <Button variant="outline" size="sm" onClick={copy}>

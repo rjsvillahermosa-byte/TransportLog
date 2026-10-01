@@ -46,6 +46,8 @@ import { DatePicker } from "../components/DatePicker";
 import { getSupabaseClient } from "../lib/supabaseClient";
 import { useToast } from "../components/Layout";
 import { useOrgPrefs } from "../lib/orgPrefs";
+import { useOrgLogo } from "../lib/orgLogo";
+import BrandedQr from "../components/BrandedQr";
 
 // ---------------------------------------------------------------------------
 // Modals
@@ -860,6 +862,7 @@ function AssetRecordModal({ open, onClose, vehicle, services }) {
   const [photo, setPhoto] = useState(null);
   const [odoAudit, setOdoAudit] = useState([]);
   const { currency_symbol: sym } = useOrgPrefs();
+  const orgLogo = useOrgLogo();
 
   // Baseline-ODO audit trail (0011) — who changed it, from what, to what.
   useEffect(() => {
@@ -930,12 +933,10 @@ function AssetRecordModal({ open, onClose, vehicle, services }) {
             <p className="text-xs text-taupe mb-2">Vehicle QR — print & stick inside the windshield</p>
             <div className="flex items-center gap-4">
               <div className="border border-sand rounded-lg p-2 bg-white">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
-                    `${window.location.origin}/v/${vehicle.vehicle_qr_token}`
-                  )}`}
-                  alt={`QR for ${vehicle.plate_number}`}
-                  className="w-36 h-36"
+                <BrandedQr
+                  url={`${window.location.origin}/v/${vehicle.vehicle_qr_token}`}
+                  logoUrl={orgLogo?.logo_url}
+                  size={144}
                 />
               </div>
               <div className="min-w-0 text-xs text-taupe">
@@ -948,9 +949,18 @@ function AssetRecordModal({ open, onClose, vehicle, services }) {
                   size="sm"
                   variant="outline"
                   className="mt-2"
-                  onClick={() => window.print()}
+                  onClick={() => {
+                    const qs = new URLSearchParams({
+                      plate: vehicle.plate_number || "",
+                      model: vehicle.model || vehicle.unit_name || "",
+                      url: `${window.location.origin}/v/${vehicle.vehicle_qr_token}`,
+                      org: orgLogo?.name || "",
+                      logo: orgLogo?.logo_url || "",
+                    });
+                    window.open(`/print/vehicle-sticker?${qs.toString()}`, "_blank");
+                  }}
                 >
-                  Print this page
+                  Design & Print Sticker
                 </Button>
               </div>
             </div>
