@@ -12,6 +12,11 @@ export default function BrandedQr({ url, logoUrl, size = 208, dotColor = "#2b242
   useEffect(() => {
     if (!containerRef.current) return;
     const options = {
+      // SVG output is resolution-independent — the default "canvas" type
+      // rasterizes at raw CSS pixel dimensions with no devicePixelRatio
+      // scaling, which is what made the embedded logo look soft/pixelated
+      // on retina screens and in print.
+      type: "svg",
       width: size,
       height: size,
       data: url,
