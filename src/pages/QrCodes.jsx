@@ -16,10 +16,12 @@ import { loadOrgPrefs } from "../lib/orgPrefs";
 // (computer still logged in as another company) before a wrong booking
 // happens. Vehicle QRs (/v/<token>) are per-vehicle and org-labeled.
 
-function QrCard({ icon: Icon, title, sub, url, badge }) {
+function QrCard({ icon: Icon, title, sub, url, badge, logoUrl }) {
   const toast = useToast();
   const [copied, setCopied] = useState(false);
-  const img = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(url)}`;
+  // ecc=H (highest error correction, ~30% tolerance) — required headroom so
+  // the code stays scannable once the client's logo covers its center.
+  const img = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&ecc=H&data=${encodeURIComponent(url)}`;
 
   const copy = async () => {
     await navigator.clipboard.writeText(url);
@@ -36,12 +38,28 @@ function QrCard({ icon: Icon, title, sub, url, badge }) {
       <h3 className="text-base font-semibold text-cocoa">{title}</h3>
       <p className="text-xs text-taupe mb-1">{sub}</p>
       {badge && (
-        <p className="text-[11px] font-bold text-brand bg-mint/50 rounded-full px-2.5 py-0.5 inline-block mb-2">
-          {badge}
-        </p>
+        // A block wrapper, not just inline-block on the <p> itself — without
+        // it, this pill and the QR box below are both inline-block siblings
+        // sharing one line box, so a short badge (e.g. "Madison Suites ·
+        // MAD-001") sits beside the QR instead of stacking above it. Only
+        // worked by accident when the badge text was long enough to force a
+        // wrap on its own (e.g. "Books into: Madison Suites · MAD-001").
+        <div className="mb-2">
+          <p className="text-[11px] font-bold text-brand bg-mint/50 rounded-full px-2.5 py-0.5 inline-block">
+            {badge}
+          </p>
+        </div>
       )}
-      <div className="inline-block border border-sand/70 p-2 bg-white rounded-lg">
+      <div className="relative inline-block border border-sand/70 p-2 bg-white rounded-lg">
         <img src={img} alt={`${title} QR Code`} className="w-52 h-52 mx-auto" />
+        {logoUrl && (
+          <img
+            src={logoUrl}
+            alt=""
+            aria-hidden="true"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full object-cover border-2 border-white shadow"
+          />
+        )}
       </div>
       <p className="text-xs text-taupe break-all mt-3 mb-4">{url}</p>
       <Button variant="outline" size="sm" onClick={copy}>
@@ -56,6 +74,7 @@ export default function QrCodes() {
   const origin = window.location.origin;
   const [orgLabel, setOrgLabel] = useState("");
   const [orgCode, setOrgCode] = useState("");
+  const [orgLogoUrl, setOrgLogoUrl] = useState("");
 
   // The booking QR is client-specific: it carries this account's org code and
   // is labeled with the org name. Where does the org come from? The signed-in
@@ -68,12 +87,13 @@ export default function QrCodes() {
           const sb = getSupabaseClient();
           const { data } = await sb
             .from("organizations")
-            .select("name, client_code")
+            .select("name, client_code, logo_url")
             .eq("id", prefs.organization_id)
             .maybeSingle();
           if (data) {
             setOrgLabel(`${data.name} · ${data.client_code}`);
             setOrgCode(data.client_code);
+            setOrgLogoUrl(data.logo_url || "");
           }
         }
       } catch {
@@ -93,6 +113,7 @@ export default function QrCodes() {
           sub="Place at the Front Office desk"
           url={`${origin}/new-booking${orgCode ? `?org=${encodeURIComponent(orgCode)}` : ""}`}
           badge={orgLabel ? `Books into: ${orgLabel}` : "Books into: the signed-in account's org"}
+          logoUrl={orgLogoUrl}
         />
         <QrCard
           icon={LayoutDashboard}
@@ -100,6 +121,7 @@ export default function QrCodes() {
           sub="Place in vehicle or dispatch board"
           url={`${origin}/`}
           badge={orgLabel}
+          logoUrl={orgLogoUrl}
         />
       </div>
 
