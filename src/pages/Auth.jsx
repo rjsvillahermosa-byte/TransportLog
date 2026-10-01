@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Car, Mail } from "lucide-react";
 import { Button, Input, Label } from "../components/ui";
 import { auth } from "../lib/db";
@@ -16,7 +16,14 @@ const CLIENT_CODE_KEY = "fleetflow:clientCode";
 // any device who knows/remembers the code. Remembered locally so a returning
 // user of that org sees their branding again without retyping it.
 function useClientBrand() {
+  const [searchParams] = useSearchParams();
   const [code, setCode] = useState(() => {
+    // A direct link (e.g. fleet.flowworkssystems.com/login?code=MAD-001) wins
+    // over whatever's remembered locally — it's an explicit, shareable
+    // per-client URL you can hand a client instead of asking them to type
+    // their code once.
+    const fromUrl = searchParams.get("code");
+    if (fromUrl) return fromUrl.toUpperCase();
     try { return localStorage.getItem(CLIENT_CODE_KEY) || ""; } catch { return ""; }
   });
   const [org, setOrg] = useState(null); // { client_code, name, plan_status, logo_url }
