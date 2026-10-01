@@ -31,6 +31,7 @@ export const STATUS_STYLES = {
   Pending: "bg-accent/15 text-accent-dark border-accent/40",
   "In Progress": "bg-mint/70 text-brand border-brand/30",
   Completed: "bg-brand text-white border-brand",
+  Cancelled: "bg-red-50 text-red-600 border-red-200",
 };
 
 export const BOOKING_ICONS = {

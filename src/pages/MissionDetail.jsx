@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
+  Ban,
   Camera,
   CheckCircle2,
   Loader2,
@@ -20,6 +21,7 @@ import { cn, STATUS_STYLES } from "../lib/utils";
 import { Button, Spinner, Textarea, Select, Label } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { useOrgLogo } from "../lib/orgLogo";
+import { roleCan } from "../lib/access";
 
 // Incident Reporting (0038, plan-gated per org) — grouped like a real fleet
 // incident intake form, not a flat list. "Other" opens a free-text box
@@ -292,10 +294,45 @@ export default function MissionDetail() {
   const [incidentDetail, setIncidentDetail] = useState("");
   const [incidentOther, setIncidentOther] = useState("");
   const [submittingIncident, setSubmittingIncident] = useState(false);
+  const [canCancel, setCanCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [submittingCancel, setSubmittingCancel] = useState(false);
 
   useEffect(() => {
     auth.currentUser().then(setMe).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!me) return;
+    roleCan("cancel_booking", me.role).then(setCanCancel).catch(() => setCanCancel(false));
+  }, [me]);
+
+  const cancelBooking = async () => {
+    const reason = cancelReason.trim();
+    if (!reason) {
+      toast({ title: "A reason is required to cancel a booking" });
+      return;
+    }
+    setSubmittingCancel(true);
+    try {
+      const patch = {
+        status: "Cancelled",
+        cancellation_reason: reason,
+        cancelled_by: me?.full_name || me?.email || "Supervisor",
+        cancelled_at: new Date().toISOString(),
+      };
+      await api.entities.TransportRequest.update(id, patch);
+      setRequest((r) => ({ ...r, ...patch }));
+      toast({ title: "Booking cancelled", description: `Logged by ${patch.cancelled_by}.` });
+      setCancelling(false);
+      setCancelReason("");
+    } catch (e) {
+      toast({ title: "Couldn't cancel booking", description: e.message });
+    } finally {
+      setSubmittingCancel(false);
+    }
+  };
 
   const submitIncident = async () => {
     if (!incidentType) {
@@ -548,6 +585,7 @@ export default function MissionDetail() {
 
   const done = request.status === "Completed" && log?.end_odometer != null;
   const inProgress = request.status === "In Progress";
+  const cancelled = request.status === "Cancelled";
 
   return (
     <div>
@@ -623,7 +661,52 @@ export default function MissionDetail() {
         </div>
       </div>
 
-      {!done && (
+      {canCancel && !done && !cancelled && (
+        <div className="bg-white rounded-3xl shadow-card p-4 mb-4">
+          {!cancelling ? (
+            <button
+              onClick={() => setCancelling(true)}
+              className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-red-600 hover:underline"
+            >
+              <Ban className="w-4 h-4" /> Cancel Booking
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-cocoa flex items-center gap-2">
+                  <Ban className="w-4 h-4 text-red-600" /> Cancel Booking
+                </p>
+                <button
+                  onClick={() => { setCancelling(false); setCancelReason(""); }}
+                  className="text-taupe hover:text-mocha"
+                  title="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Reason for cancellation (required)</Label>
+                <Textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Guest changed plans, duplicate booking, weather, etc…"
+                />
+              </div>
+              <Button
+                variant="destructive"
+                className="w-full"
+                disabled={submittingCancel || !cancelReason.trim()}
+                onClick={cancelBooking}
+              >
+                {submittingCancel ? <Spinner className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                Confirm Cancellation
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!done && !cancelled && (
         <div className="space-y-4">
           {!inProgress && (
             <OdoCapture
@@ -751,6 +834,30 @@ export default function MissionDetail() {
               </>
             )}
           </Button>
+        </div>
+      )}
+
+      {cancelled && (
+        <div className="bg-white rounded-3xl shadow-card p-5 space-y-3">
+          <p className="flex items-center gap-2 text-red-600 font-semibold text-sm">
+            <Ban className="w-4 h-4" /> Booking cancelled
+          </p>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-taupe">Reason</p>
+            <p className="text-sm text-mocha mt-0.5">{request.cancellation_reason || "—"}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-taupe">Cancelled by</p>
+              <p className="text-mocha mt-0.5">{request.cancelled_by || "—"}</p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-taupe">Cancelled at</p>
+              <p className="text-mocha mt-0.5">
+                {request.cancelled_at ? dayjs(request.cancelled_at).format("MMM D, YYYY h:mm A") : "—"}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

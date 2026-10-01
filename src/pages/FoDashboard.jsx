@@ -38,6 +38,7 @@ function StatusChip({ status }) {
     Pending: "bg-accent/15 text-accent-dark border-accent/40",
     "In Progress": "bg-brand text-white border-brand",
     Completed: "bg-mint/70 text-teal border-teal/30",
+    Cancelled: "bg-red-50 text-red-600 border-red-200",
   };
   return (
     <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap", map[status] || "bg-mint/60 text-mocha border-sand")}>
