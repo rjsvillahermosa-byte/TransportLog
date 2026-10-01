@@ -16,6 +16,7 @@ import Fuel from "./pages/Fuel";
 import NewBooking from "./pages/NewBooking";
 import History from "./pages/History";
 import QrCodes from "./pages/QrCodes";
+import TagEditor from "./pages/TagEditor";
 import Settings, { AdminOnlyNotice } from "./pages/Settings";
 import Reports from "./pages/Reports";
 import Organizations from "./pages/Organizations";
@@ -210,6 +211,7 @@ function Shell() {
           <Route path="/new-booking" element={<NewBooking user={user} />} />
           <Route path="/history" element={<History />} />
           <Route path="/qr-codes" element={<QrCodes />} />
+          <Route path="/tag-editor" element={<TagEditor />} />
           <Route path="/reports" element={<Reports user={user} />} />
           <Route path="/settings" element={<Settings user={user} />} />
           <Route path="*" element={<Navigate to="/" replace />} />

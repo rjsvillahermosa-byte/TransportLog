@@ -12,6 +12,7 @@ import {
   PlusCircle,
   History,
   QrCode,
+  Tag,
   Settings as SettingsIcon,
   Menu,
   X,
@@ -40,6 +41,7 @@ const NAV_GROUPS = [
       { label: "New Booking", path: "/new-booking", icon: PlusCircle },
       { label: "History", path: "/history", icon: History },
       { label: "QR Codes", path: "/qr-codes", icon: QrCode },
+      { label: "Tag Editor", path: "/tag-editor", icon: Tag },
     ],
   },
   {
