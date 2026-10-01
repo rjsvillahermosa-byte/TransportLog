@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { MapPin, Clock, Tags, Plus, Trash2, Loader2 } from "lucide-react";
+import { MapPin, Clock, Tags, Plus, Trash2, Loader2, ClipboardList, UploadCloud, Undo2 } from "lucide-react";
 import { Button, Input, Label, Select } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { loadOrgPrefs, saveOrgPrefs, DEFAULT_PREFS } from "../lib/orgPrefs";
+import { BOOKING_TYPES, cn } from "../lib/utils";
 
 // Client Booking Preferences — per-org config for the client-facing UI:
 // booking locations, the 24h/12h time standard, and role terminology.
@@ -15,6 +16,13 @@ const KINDS = [
   { value: "dropoff", label: "Destination only" },
 ];
 
+// Seeds the draft from the app's original hardcoded list the first time an
+// org has never customized Booking Type — so there's something real to
+// edit instead of an empty list, without that fallback ever silently
+// overriding a real (possibly empty-on-purpose) published list again later.
+const seedBookingTypes = (opts) =>
+  (opts.length ? opts : BOOKING_TYPES.map((v) => ({ value: v, enabled: true })));
+
 export default function ClientPrefsCard() {
   const toast = useToast();
   const [prefs, setPrefs] = useState(DEFAULT_PREFS);
@@ -22,6 +30,16 @@ export default function ClientPrefsCard() {
   const [busy, setBusy] = useState(false);
   const [locName, setLocName] = useState("");
   const [locKind, setLocKind] = useState("both");
+  const [newBookingType, setNewBookingType] = useState("");
+  // Booking Type and Location lists are edited as a local DRAFT — nothing
+  // reaches New Booking until "Publish changes" is clicked. `snapshot` is
+  // the JSON of the last-published state, so dirty-checking and Discard
+  // both just compare/reset against it instead of needing a second round
+  // trip to the server.
+  const [draftLocations, setDraftLocations] = useState([]);
+  const [draftBookingTypes, setDraftBookingTypes] = useState([]);
+  const [snapshot, setSnapshot] = useState("");
+  const [publishing, setPublishing] = useState(false);
   // Role-terms inputs used to persist(...) on every keystroke: a network
   // round trip per character, and the field disabled itself (busy) for
   // the duration of each one — the field could only ever accept one
@@ -34,6 +52,11 @@ export default function ClientPrefsCard() {
   useEffect(() => {
     loadOrgPrefs(true).then((p) => {
       setPrefs(p);
+      const locs = p.location_presets.map((l) => ({ ...l, enabled: l.enabled !== false }));
+      const types = seedBookingTypes(p.booking_type_options).map((t) => ({ ...t, enabled: t.enabled !== false }));
+      setDraftLocations(locs);
+      setDraftBookingTypes(types);
+      setSnapshot(JSON.stringify({ location_presets: locs, booking_type_options: types }));
       setLocalTerms(p.role_terms);
       localTermsRef.current = p.role_terms;
       setLoaded(true);
@@ -41,6 +64,10 @@ export default function ClientPrefsCard() {
   }, []);
 
   useEffect(() => () => debounceRef.current && clearTimeout(debounceRef.current), []);
+
+  const isDirty =
+    loaded &&
+    JSON.stringify({ location_presets: draftLocations, booking_type_options: draftBookingTypes }) !== snapshot;
 
   const persist = async (patch) => {
     setBusy(true);
@@ -55,22 +82,56 @@ export default function ClientPrefsCard() {
     }
   };
 
+  const publishLists = async () => {
+    setPublishing(true);
+    try {
+      const next = await saveOrgPrefs({ location_presets: draftLocations, booking_type_options: draftBookingTypes });
+      setPrefs(next);
+      setSnapshot(JSON.stringify({ location_presets: draftLocations, booking_type_options: draftBookingTypes }));
+      toast({ title: "Published", description: "New Booking now shows your updated lists." });
+    } catch (e) {
+      toast({ title: "Publish failed", description: e.message });
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const discardDraft = () => {
+    const snap = JSON.parse(snapshot);
+    setDraftLocations(snap.location_presets);
+    setDraftBookingTypes(snap.booking_type_options);
+  };
+
   const addLocation = () => {
     const name = locName.trim();
     if (!name) return;
-    if (prefs.location_presets.some((l) => l.name.toLowerCase() === name.toLowerCase())) {
+    if (draftLocations.some((l) => l.name.toLowerCase() === name.toLowerCase())) {
       toast({ title: "Already in the list", description: name });
       return;
     }
-    const next = [...prefs.location_presets, { name, kind: locKind }];
+    setDraftLocations([...draftLocations, { name, kind: locKind, enabled: true }]);
     setLocName("");
     setLocKind("both");
-    persist({ location_presets: next });
   };
 
-  const removeLocation = (name) => {
-    persist({ location_presets: prefs.location_presets.filter((l) => l.name !== name) });
+  const removeLocation = (name) => setDraftLocations(draftLocations.filter((l) => l.name !== name));
+  const toggleLocation = (name) =>
+    setDraftLocations(draftLocations.map((l) => (l.name === name ? { ...l, enabled: !l.enabled } : l)));
+
+  const addBookingType = () => {
+    const value = newBookingType.trim();
+    if (!value) return;
+    if (draftBookingTypes.some((t) => t.value.toLowerCase() === value.toLowerCase())) {
+      toast({ title: "Already in the list", description: value });
+      return;
+    }
+    setDraftBookingTypes([...draftBookingTypes, { value, enabled: true }]);
+    setNewBookingType("");
   };
+
+  const removeBookingType = (value) => setDraftBookingTypes(draftBookingTypes.filter((t) => t.value !== value));
+  const toggleBookingType = (value) =>
+    setDraftBookingTypes(draftBookingTypes.map((t) => (t.value === value ? { ...t, enabled: !t.enabled } : t)));
 
   const setTerm = (role, term) => {
     const next = { ...localTermsRef.current, [role]: term };
@@ -87,11 +148,77 @@ export default function ClientPrefsCard() {
 
   return (
     <div className="bg-white rounded-3xl shadow-card p-5 mb-6">
-      <h3 className="text-sm font-semibold text-cocoa mb-1">Client Booking Preferences</h3>
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <h3 className="text-sm font-semibold text-cocoa">Client Booking Preferences</h3>
+        {isDirty && (
+          <div className="flex items-center gap-2 flex-none">
+            <span className="text-[11px] font-medium text-orange bg-orange/10 rounded-full px-2.5 py-1">
+              Unpublished changes
+            </span>
+            <Button size="sm" variant="outline" onClick={discardDraft} disabled={publishing}>
+              <Undo2 className="w-3.5 h-3.5" /> Discard
+            </Button>
+            <Button size="sm" variant="primary" onClick={publishLists} disabled={publishing}>
+              {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
+              Publish changes
+            </Button>
+          </div>
+        )}
+      </div>
       <p className="text-xs text-taupe mb-4">
-        Booking locations, the time standard, and how roles are titled — applied to every
-        member of your organization.
+        Booking locations, booking types, the time standard, and how roles are titled —
+        applied to every member of your organization. Locations and booking types are edited
+        as a draft here; New Booking only sees your changes once you click Publish.
       </p>
+
+      {/* Booking types */}
+      <div className="mb-5">
+        <Label className="mb-1.5 flex items-center gap-1.5">
+          <ClipboardList className="w-3.5 h-3.5" /> Booking types
+        </Label>
+        <p className="text-[11px] text-taupe mb-2">
+          Shown in the Booking Type dropdown on New Booking. Toggle one off to hide it without
+          losing your wording — it stays here, just unpublished.
+        </p>
+        <div className="flex gap-2 mb-2">
+          <Input
+            value={newBookingType}
+            onChange={(e) => setNewBookingType(e.target.value)}
+            placeholder="e.g. (Procurement) Departmental Errand Booking"
+            onKeyDown={(e) => e.key === "Enter" && addBookingType()}
+          />
+          <Button size="sm" variant="primary" onClick={addBookingType} className="flex-none">
+            <Plus className="w-4 h-4" /> Add
+          </Button>
+        </div>
+        {draftBookingTypes.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {draftBookingTypes.map((t) => (
+              <span
+                key={t.value}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border",
+                  t.enabled ? "bg-mint/50 border-brand/20 text-brand" : "bg-sand/30 border-sand text-taupe line-through"
+                )}
+              >
+                <button
+                  onClick={() => toggleBookingType(t.value)}
+                  title={t.enabled ? "Click to hide from New Booking" : "Click to show on New Booking"}
+                >
+                  {t.value}
+                </button>
+                <button
+                  onClick={() => removeBookingType(t.value)}
+                  className="text-taupe hover:text-red-600"
+                  title="Delete permanently"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Booking locations */}
       <div className="mb-5">
@@ -100,7 +227,8 @@ export default function ClientPrefsCard() {
         </Label>
         <p className="text-[11px] text-taupe mb-2">
           Offered as quick picks on New Booking. Members can still choose "Others" and type
-          any custom place — the dispatcher gets the exact details.
+          any custom place — the dispatcher gets the exact details. Toggle one off to hide it
+          without losing it — it stays here, just unpublished.
         </p>
         <div className="flex gap-2 mb-2">
           <Input
@@ -114,25 +242,33 @@ export default function ClientPrefsCard() {
               <option key={k.value} value={k.value}>{k.label}</option>
             ))}
           </Select>
-          <Button size="sm" variant="primary" onClick={addLocation} disabled={busy} className="flex-none">
+          <Button size="sm" variant="primary" onClick={addLocation} className="flex-none">
             <Plus className="w-4 h-4" /> Add
           </Button>
         </div>
-        {prefs.location_presets.length > 0 && (
+        {draftLocations.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            {prefs.location_presets.map((l) => (
+            {draftLocations.map((l) => (
               <span
                 key={l.name}
-                className="inline-flex items-center gap-1.5 bg-mint/50 border border-brand/20 rounded-full px-3 py-1 text-xs font-medium text-brand"
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border",
+                  l.enabled ? "bg-mint/50 border-brand/20 text-brand" : "bg-sand/30 border-sand text-taupe line-through"
+                )}
               >
-                {l.name}
-                <span className="text-[10px] text-taupe">
+                <button
+                  onClick={() => toggleLocation(l.name)}
+                  title={l.enabled ? "Click to hide from New Booking" : "Click to show on New Booking"}
+                >
+                  {l.name}
+                </button>
+                <span className="text-[10px] text-taupe no-underline">
                   {l.kind === "pickup" ? "pickup" : l.kind === "dropoff" ? "drop-off" : "both"}
                 </span>
                 <button
                   onClick={() => removeLocation(l.name)}
                   className="text-taupe hover:text-red-600"
-                  title="Remove location"
+                  title="Delete permanently"
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>

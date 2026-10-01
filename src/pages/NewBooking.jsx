@@ -19,7 +19,7 @@ const OTHERS = "__others__";
 function LocationField({ label, placeholder, kind, value, onChange, prefs, required }) {
   const [customMode, setCustomMode] = useState(false);
   const presets = prefs.location_presets.filter(
-    (l) => !l.kind || l.kind === "both" || l.kind === kind
+    (l) => (!l.kind || l.kind === "both" || l.kind === kind) && l.enabled !== false
   );
   const isPreset = presets.some((l) => l.name === value);
   const showCustom = customMode || (value && !isPreset);
@@ -98,6 +98,16 @@ export default function NewBooking({ user }) {
   // free-text inputs globally or per client (pilot list in /lab).
   const presetsOn = useFeatureFlag("booking_presets", prefs?.organization_id);
   const effectivePrefs = presetsOn ? prefs : { ...prefs, location_presets: [] };
+  // Booking Type options: org-customizable (Settings → Client Booking
+  // Preferences → Booking types), published via that card's own
+  // Publish-changes step. Falls back to the original hardcoded 4 options
+  // when the org has never customized the list (empty array) or every
+  // entry happens to be toggled off (misconfiguration — never leave the
+  // dropdown with nothing selectable).
+  const enabledBookingTypes = (prefs.booking_type_options || [])
+    .filter((t) => t.enabled !== false)
+    .map((t) => t.value);
+  const effectiveBookingTypes = enabledBookingTypes.length ? enabledBookingTypes : BOOKING_TYPES;
   // QR safety (?org=CODE): the printed QR names the org it was made for. If
   // the signed-in account belongs to a DIFFERENT org (shared front-desk
   // computer), block submission — the booking would land in the wrong
@@ -347,7 +357,7 @@ export default function NewBooking({ user }) {
                   <option value="" disabled>
                     Select type
                   </option>
-                  {BOOKING_TYPES.map((t) => (
+                  {effectiveBookingTypes.map((t) => (
                     <option key={t} value={t}>
                       {t}
                     </option>

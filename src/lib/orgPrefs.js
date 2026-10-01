@@ -8,7 +8,8 @@ import { getSupabaseClient } from "./supabaseClient";
 // ---------------------------------------------------------------------------
 
 export const DEFAULT_PREFS = {
-  location_presets: [], // [{ name, kind: "both"|"pickup"|"dropoff" }]
+  location_presets: [], // [{ name, kind: "both"|"pickup"|"dropoff", enabled }]
+  booking_type_options: [], // [{ value, enabled }] — empty = app's hardcoded default
   time_format: "24h",   // the standard — avoids AM/PM scheduling confusion
   role_terms: {},       // { Admin: "Dispatcher", Staff: "Front Office", ... }
   currency_code: "PHP", // ISO 4217 — set per-org so non-Philippine clients aren't shown ₱
@@ -27,7 +28,7 @@ export async function loadOrgPrefs(force = false) {
     try {
       const { data, error } = await sb
         .from("org_settings")
-        .select("organization_id, location_presets, time_format, role_terms, currency_code, currency_symbol")
+        .select("organization_id, location_presets, booking_type_options, time_format, role_terms, currency_code, currency_symbol")
         // the legacy NULL-org row is also visible to platform supers —
         // prefer the caller's real org row
         .order("organization_id", { nullsFirst: false })
@@ -42,6 +43,9 @@ export async function loadOrgPrefs(force = false) {
           organization_id: data[0].organization_id,
           location_presets: Array.isArray(data[0].location_presets)
             ? data[0].location_presets
+            : [],
+          booking_type_options: Array.isArray(data[0].booking_type_options)
+            ? data[0].booking_type_options
             : [],
           time_format: data[0].time_format === "12h" ? "12h" : "24h",
           role_terms:
