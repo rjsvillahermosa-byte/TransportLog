@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Briefcase, Building2, ClipboardList, LogOut, Trash2, Clock, MapPin, Calendar, Car } from "lucide-react";
 import dayjs from "../lib/day";
 import { api, auth, isOnline } from "../lib/db";
@@ -18,6 +18,7 @@ const FILTERS = [
 ];
 
 function MissionCard({ request: r, vehicles, onDelete, onChanged }) {
+  const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [assigningVehicle, setAssigningVehicle] = useState(false);
   const del = async (e) => {
@@ -55,8 +56,16 @@ function MissionCard({ request: r, vehicles, onDelete, onChanged }) {
   };
 
   return (
-    <Link to={`/mission/${r.id}`}>
-      <div className="bg-white rounded-3xl shadow-card p-4 hover:shadow-md transition-shadow active:scale-[0.99]">
+    // A plain clickable div, not a <Link>/<a> — the Vehicle cell below nests
+    // a <select>, and nesting interactive form controls inside an anchor is
+    // invalid HTML. Browsers handle that inconsistently: it looked fine in
+    // automated/ref-based testing but a real click to open the already-open
+    // dropdown's option list would bubble up and navigate to the mission
+    // detail page instead of letting you pick an option (confirmed on video).
+    <div
+      onClick={() => navigate(`/mission/${r.id}`)}
+      className="bg-white rounded-3xl shadow-card p-4 hover:shadow-md transition-shadow active:scale-[0.99] cursor-pointer"
+    >
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-lg bg-mint/50 flex items-center justify-center">
@@ -170,8 +179,7 @@ function MissionCard({ request: r, vehicles, onDelete, onChanged }) {
             </div>
           </div>
         </div>
-      </div>
-    </Link>
+    </div>
   );
 }
 
