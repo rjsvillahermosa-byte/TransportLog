@@ -36,6 +36,16 @@ function MissionCard({ request: r, vehicles, onDelete, onChanged }) {
     }
   };
 
+  // "CAR - Plate Number" — the car name/model on its own is useless with
+  // more than one vehicle on the fleet, and the plate alone means nothing
+  // to someone who doesn't have it memorized.
+  const vehicleLabel = (plate) => {
+    if (!plate) return "";
+    const v = vehicles.find((x) => x.plate_number === plate);
+    const car = v?.model || v?.unit_name;
+    return car ? `${car} - ${plate}` : plate;
+  };
+
   const assignVehicle = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -105,7 +115,7 @@ function MissionCard({ request: r, vehicles, onDelete, onChanged }) {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-2 text-xs">
+        <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="flex items-start gap-1.5">
             <MapPin className="w-3.5 h-3.5 text-taupe mt-0.5 flex-none" />
             <div>
@@ -122,63 +132,66 @@ function MissionCard({ request: r, vehicles, onDelete, onChanged }) {
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-1.5">
-            <Car className="w-3.5 h-3.5 text-taupe mt-0.5 flex-none" />
-            <div className="min-w-0 flex-1">
-              <p className="text-taupe">Vehicle</p>
-              {assigningVehicle ? (
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                  <Select
-                    autoFocus
-                    disabled={busy}
-                    defaultValue={r.vehicle_plate || ""}
-                    onChange={assignVehicle}
-                    // No onBlur-to-close here: in some browsers, opening the
-                    // native <select> dropdown itself blurs the element,
-                    // which used to unmount this before a choice could be
-                    // made — the dropdown would "disappear right away" on
-                    // the very click meant to open it. Cancelling now goes
-                    // through the explicit × button below instead.
-                    className="h-6 py-0 text-xs"
-                  >
-                    <option value="">{busy ? "Saving…" : "— Unassign —"}</option>
-                    {vehicles
-                      // Always include the currently-assigned vehicle even if its
-                      // status isn't "available" (e.g. it shows in_use because
-                      // it's assigned to THIS mission) — otherwise reopening the
-                      // picker on an already-assigned mission looks broken/empty.
-                      .filter((v) => v.status === "available" || v.plate_number === r.vehicle_plate)
-                      .map((v) => (
-                        <option key={v.id} value={v.plate_number}>
-                          {v.plate_number} — {v.model || v.unit_name || ""}
-                        </option>
-                      ))}
-                  </Select>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => setAssigningVehicle(false)}
-                    className="text-taupe hover:text-mocha flex-none"
-                    title="Cancel"
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setAssigningVehicle(true);
-                  }}
-                  className={r.vehicle_plate ? "text-mocha truncate hover:text-orange hover:underline" : "text-orange font-medium hover:underline"}
+        </div>
+        {/* Vehicle gets its own full-width row, not squeezed into a 1/3
+            grid column — "CAR - Plate Number" needs real room to not
+            truncate, and the picker itself needs a wide enough target. */}
+        <div className="flex items-start gap-1.5 text-xs mt-2">
+          <Car className="w-3.5 h-3.5 text-taupe mt-0.5 flex-none" />
+          <div className="min-w-0 flex-1">
+            <p className="text-taupe">Vehicle</p>
+            {assigningVehicle ? (
+              <div className="flex items-center gap-1 max-w-xs" onClick={(e) => e.stopPropagation()}>
+                <Select
+                  autoFocus
+                  disabled={busy}
+                  defaultValue={r.vehicle_plate || ""}
+                  onChange={assignVehicle}
+                  // No onBlur-to-close here: in some browsers, opening the
+                  // native <select> dropdown itself blurs the element,
+                  // which used to unmount this before a choice could be
+                  // made — the dropdown would "disappear right away" on
+                  // the very click meant to open it. Cancelling now goes
+                  // through the explicit × button below instead.
+                  className="h-8 py-0 text-xs"
                 >
-                  {r.vehicle_plate || "Assign vehicle"}
+                  <option value="">{busy ? "Saving…" : "— Unassign —"}</option>
+                  {vehicles
+                    // Always include the currently-assigned vehicle even if its
+                    // status isn't "available" (e.g. it shows in_use because
+                    // it's assigned to THIS mission) — otherwise reopening the
+                    // picker on an already-assigned mission looks broken/empty.
+                    .filter((v) => v.status === "available" || v.plate_number === r.vehicle_plate)
+                    .map((v) => (
+                      <option key={v.id} value={v.plate_number}>
+                        {v.model || v.unit_name ? `${v.model || v.unit_name} - ${v.plate_number}` : v.plate_number}
+                      </option>
+                    ))}
+                </Select>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setAssigningVehicle(false)}
+                  className="text-taupe hover:text-mocha flex-none"
+                  title="Cancel"
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setAssigningVehicle(true);
+                }}
+                className={r.vehicle_plate ? "text-mocha hover:text-orange hover:underline" : "text-orange font-medium hover:underline"}
+              >
+                  {vehicleLabel(r.vehicle_plate) || "Assign vehicle"}
                 </button>
               )}
             </div>
           </div>
-        </div>
     </div>
   );
 }

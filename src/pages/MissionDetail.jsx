@@ -233,6 +233,7 @@ export default function MissionDetail() {
   // the /v/<token> scan page). vehicle_qr_verified=true means the driver
   // scanned THAT physical vehicle's QR and completed the walk-around.
   const [vehicleId, setVehicleId] = useState(null);
+  const [vehicleModel, setVehicleModel] = useState("");
   const [checklistData, setChecklistData] = useState(null);
   const [endOdo, setEndOdo] = useState(null);
   const [remarks, setRemarks] = useState("");
@@ -266,24 +267,29 @@ export default function MissionDetail() {
         setLog(logs[0]);
         setRemarks(logs[0].remarks || "");
       }
-      // Baseline ODO of the assigned vehicle — shown as the suggested Start
-      // ODO when the mission hasn't started and no reading exists yet. Also
-      // resolves the vehicle row for the QR/checklist binding (0030).
-      if (r?.vehicle_plate && !logs.length) {
+      // Resolves the assigned vehicle's row — always, not just pre-start,
+      // since the car model is needed for the "CAR - Plate Number" display
+      // on completed missions too.
+      if (r?.vehicle_plate) {
         try {
           const vehicles = await api.entities.Vehicle.filter({ plate_number: r.vehicle_plate });
           if (vehicles[0]) {
-            if (vehicles[0].start_odometer_km != null) {
-              setBaselineOdo(vehicles[0].start_odometer_km);
-            }
             setVehicleId(vehicles[0].id);
-            const cl = sessionStorage.getItem(`ff:checklist:${vehicles[0].id}`);
-            if (cl) {
-              const parsed = JSON.parse(cl);
-              // Valid for the working day — a morning walk-around covers the
-              // day's missions in the same vehicle.
-              if (Date.now() - parsed.at < 12 * 3600 * 1000 && parsed.answers) {
-                setChecklistData(parsed);
+            setVehicleModel(vehicles[0].model || vehicles[0].unit_name || "");
+            // Baseline ODO suggestion + QR checklist binding only matter
+            // before the mission has started.
+            if (!logs.length) {
+              if (vehicles[0].start_odometer_km != null) {
+                setBaselineOdo(vehicles[0].start_odometer_km);
+              }
+              const cl = sessionStorage.getItem(`ff:checklist:${vehicles[0].id}`);
+              if (cl) {
+                const parsed = JSON.parse(cl);
+                // Valid for the working day — a morning walk-around covers the
+                // day's missions in the same vehicle.
+                if (Date.now() - parsed.at < 12 * 3600 * 1000 && parsed.answers) {
+                  setChecklistData(parsed);
+                }
               }
             }
           }
@@ -509,7 +515,13 @@ export default function MissionDetail() {
           </div>
           <div>
             <p className="text-xs text-taupe">Vehicle</p>
-            <p className="text-mocha">{request.vehicle_plate || "Unassigned"}</p>
+            <p className="text-mocha">
+              {request.vehicle_plate
+                ? vehicleModel
+                  ? `${vehicleModel} - ${request.vehicle_plate}`
+                  : request.vehicle_plate
+                : "Unassigned"}
+            </p>
           </div>
           {request.special_notes && (
             <div className="col-span-2">
@@ -625,7 +637,7 @@ export default function MissionDetail() {
               <p>Start ODO: {Number(log.start_odometer).toLocaleString()} km</p>
               <p>End ODO: {Number(log.end_odometer).toLocaleString()} km</p>
               {request.vehicle_plate && (
-                <p>Vehicle: {request.vehicle_plate}</p>
+                <p>Vehicle: {vehicleModel ? `${vehicleModel} - ${request.vehicle_plate}` : request.vehicle_plate}</p>
               )}
               {request.requester_type === "Errand" && request.department && (
                 <p>Department: {request.department}</p>
