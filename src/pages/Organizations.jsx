@@ -360,6 +360,7 @@ export default function Organizations() {
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Plan</th>
                 <th className="px-4 py-3">Limits</th>
+                <th className="px-4 py-3">Features</th>
                 <th className="px-4 py-3">Members</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3"></th>
@@ -424,6 +425,21 @@ export default function Organizations() {
                       memberCount={memberCounts[o.id] ?? 0}
                       onCommit={(patch) => setPlanField(o.id, patch)}
                     />
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() =>
+                        setPlanField(o.id, { incident_reporting_enabled: !o.incident_reporting_enabled })
+                      }
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                        o.incident_reporting_enabled
+                          ? "bg-mint text-brand"
+                          : "bg-sand/50 text-taupe"
+                      }`}
+                      title="Toggle the Report Incident feature for this client"
+                    >
+                      Incident Reporting: {o.incident_reporting_enabled ? "ON" : "OFF"}
+                    </button>
                   </td>
                   <td className="px-4 py-3">
                     <button

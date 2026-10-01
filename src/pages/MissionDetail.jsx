@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  AlertTriangle,
   ArrowLeft,
   Camera,
   CheckCircle2,
@@ -14,10 +15,54 @@ import {
 import dayjs from "dayjs";
 import { themeColors } from "../lib/theme";
 import { setMissionContext, onOdoValue } from "../lib/voice";
-import { api, integrations, isOnline, enqueueAction } from "../lib/db";
+import { api, auth, integrations, isOnline, enqueueAction } from "../lib/db";
 import { cn, STATUS_STYLES } from "../lib/utils";
-import { Button, Spinner, Textarea } from "../components/ui";
+import { Button, Spinner, Textarea, Select, Label } from "../components/ui";
 import { useToast } from "../components/Layout";
+import { useOrgLogo } from "../lib/orgLogo";
+
+// Incident Reporting (0038, plan-gated per org) — grouped like a real fleet
+// incident intake form, not a flat list. "Other" opens a free-text box
+// instead of forcing a detail into an unrelated category.
+const INCIDENT_GROUPS = [
+  { label: "Collision & Accidents", options: [
+    "Minor Collision — No Injury / Drivable", "Collision — Vehicle Damage Only",
+    "Collision — With Injury", "Collision — Third-Party Vehicle",
+    "Collision — Fixed Object (Gate/Wall/Post)", "Rear-Ended / Struck from Behind",
+    "Side-Swipe / Grazing", "Hit-and-Run — Other Party Left Scene", "Rollover / Overturn",
+  ]},
+  { label: "Mechanical & Vehicle Fault", options: [
+    "Flat Tire / Puncture", "Tire Blowout", "Battery / Low Voltage / Won't Start",
+    "Engine Stalling / Cut Out", "Engine Overheating", "Brake Issue — Squeal / Drag / Warning",
+    "Brake Failure — Loss of Pressure", "Alternator / Charging System Fault",
+    "Transmission / Gearbox Fault", "Fuel Leak / Fuel System Fault",
+    "Electrical / Wiring / Light Fault", "Suspension / Steering Fault",
+    "Radiator / Coolant Leak", "Dashboard Warning Light On",
+  ]},
+  { label: "Fuel & Metering", options: [
+    "Low Fuel / Fuel Level Warning", "Fuel Discrepancy — Logged vs Actual Differ",
+    "Suspected Fuel Theft / Siphoning", "Poor Mileage / Higher Consumption", "Wrong Fuel Type Filled",
+  ]},
+  { label: "Route, Traffic & Environment", options: [
+    "Traffic Delay / Congestion", "Road Blocked — Diversion Taken",
+    "Road Hazard — Pothole / Bump Struck", "Flooding / High Water on Route",
+    "Weather — Rain / Storm / Fog / Visibility", "Debris / Obstacle on Road",
+    "Animal Struck / Wildlife Encounter",
+  ]},
+  { label: "Passenger & Conduct", options: [
+    "Passenger Illness / Medical Concern", "Passenger No-Show — Booking Missed",
+    "Late Arrival / Schedule Delay", "Passenger Complaint / Feedback",
+    "Dispute / Altercation — Third Party", "Traffic Violation / Citation Issued",
+    "Unauthorized Stop / Route Deviation", "Driver Fatigue / Unfit for Duty",
+  ]},
+  { label: "Cargo, Asset & Property", options: [
+    "Luggage / Item Left Behind", "Luggage Shift / Item Damaged", "Window / Glass Damage",
+    "Light / Mirror Broken", "Door / Lock / Access Fault", "Fire / Smoke — Vehicle",
+    "Lost Property Found / Returned",
+  ]},
+  { label: "Other", options: ["Other — Please Describe Below"] },
+];
+const OTHER_INCIDENT = "Other — Please Describe Below";
 
 const ODO_PROMPT =
   "Look at this odometer/dashboard photo and extract ONLY the odometer reading number. " +
@@ -240,6 +285,52 @@ export default function MissionDetail() {
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const tracker = useRouteTracker();
+  const orgInfo = useOrgLogo();
+  const [me, setMe] = useState(null);
+  const [reportingIncident, setReportingIncident] = useState(false);
+  const [incidentType, setIncidentType] = useState("");
+  const [incidentDetail, setIncidentDetail] = useState("");
+  const [incidentOther, setIncidentOther] = useState("");
+  const [submittingIncident, setSubmittingIncident] = useState(false);
+
+  useEffect(() => {
+    auth.currentUser().then(setMe).catch(() => {});
+  }, []);
+
+  const submitIncident = async () => {
+    if (!incidentType) {
+      toast({ title: "Pick an incident type first" });
+      return;
+    }
+    // "Other" requires real free text (the type alone says nothing); every
+    // other type already names the incident, so an empty detail box just
+    // falls back to repeating the type — incidents.detail is NOT NULL.
+    const detail = incidentType === OTHER_INCIDENT ? incidentOther.trim() : incidentDetail.trim() || incidentType;
+    if (incidentType === OTHER_INCIDENT && !detail) {
+      toast({ title: "Describe the incident before submitting" });
+      return;
+    }
+    setSubmittingIncident(true);
+    try {
+      await api.entities.IncidentLog.create({
+        type: incidentType,
+        detail,
+        mission_id: request.mission_id,
+        vehicle_plate: request.vehicle_plate || "",
+        reported_by: me?.full_name || "Staff",
+        source: "manual",
+      });
+      toast({ title: "Incident reported", description: "Logged for this mission." });
+      setIncidentType("");
+      setIncidentDetail("");
+      setIncidentOther("");
+      setReportingIncident(false);
+    } catch (e) {
+      toast({ title: "Couldn't report incident", description: e.message });
+    } finally {
+      setSubmittingIncident(false);
+    }
+  };
 
   // expose start/end to the voice assistant ("start mission" / "end mission")
   useEffect(() => {
@@ -560,6 +651,76 @@ export default function MissionDetail() {
                   )}
                 </div>
               )}
+
+              {orgInfo?.incident_reporting_enabled && (
+                <div className="bg-white rounded-3xl shadow-card p-4">
+                  {!reportingIncident ? (
+                    <button
+                      onClick={() => setReportingIncident(true)}
+                      className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-red-600 hover:underline"
+                    >
+                      <AlertTriangle className="w-4 h-4" /> Report an Incident
+                    </button>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-cocoa flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-red-600" /> Report an Incident
+                        </p>
+                        <button
+                          onClick={() => setReportingIncident(false)}
+                          className="text-taupe hover:text-mocha"
+                          title="Cancel"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Incident type</Label>
+                        <Select value={incidentType} onChange={(e) => setIncidentType(e.target.value)}>
+                          <option value="" disabled>Select incident type…</option>
+                          {INCIDENT_GROUPS.map((g) => (
+                            <optgroup key={g.label} label={g.label}>
+                              {g.options.map((o) => (
+                                <option key={o} value={o}>{o}</option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </Select>
+                      </div>
+                      {incidentType === OTHER_INCIDENT ? (
+                        <div className="space-y-1.5">
+                          <Label>Describe the incident</Label>
+                          <Textarea
+                            value={incidentOther}
+                            onChange={(e) => setIncidentOther(e.target.value)}
+                            placeholder="What happened?"
+                          />
+                        </div>
+                      ) : incidentType ? (
+                        <div className="space-y-1.5">
+                          <Label>Additional details (optional but recommended)</Label>
+                          <Textarea
+                            value={incidentDetail}
+                            onChange={(e) => setIncidentDetail(e.target.value)}
+                            placeholder="Location, what happened, anyone involved…"
+                          />
+                        </div>
+                      ) : null}
+                      <Button
+                        variant="primary"
+                        className="w-full"
+                        disabled={submittingIncident || !incidentType}
+                        onClick={submitIncident}
+                      >
+                        {submittingIncident ? <Spinner className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                        Submit Report
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <OdoCapture label="End ODO — after the trip" onCaptured={setEndOdo} />
               <div className="bg-white rounded-3xl shadow-card p-4">
                 <p className="text-sm font-semibold text-cocoa mb-2">Remarks</p>

@@ -3,14 +3,14 @@ import { getSupabaseClient } from "./supabaseClient";
 import { loadOrgPrefs, onPrefsChange } from "./orgPrefs";
 
 // ---------------------------------------------------------------------------
-// In-app header branding for a signed-in member's own organization. Separate
-// from the Super Admin's device-local Branding Studio (src/lib/branding.js,
-// localStorage) — this is DB-backed (organizations.logo_url, 0036) so every
-// member of that org sees the same logo on every device, not just the one
-// browser that ran the Branding Studio.
+// The signed-in member's own organizations row — name + logo_url for in-app
+// branding (0036; separate from the Super Admin's device-local Branding
+// Studio in src/lib/branding.js), plus incident_reporting_enabled (0038),
+// the platform-owner-controlled plan gate for the Report Incident UI. One
+// query, reused for both — both are cheap, rarely-changing org attributes.
 // ---------------------------------------------------------------------------
 
-let cache = null; // { name, logo_url } | null (no org) | undefined (not loaded)
+let cache = null; // { name, logo_url, incident_reporting_enabled } | null (no org) | undefined (not loaded)
 let inflight = null;
 
 async function loadOrgLogo(force = false) {
@@ -28,7 +28,7 @@ async function loadOrgLogo(force = false) {
       }
       const { data } = await sb
         .from("organizations")
-        .select("name, logo_url")
+        .select("name, logo_url, incident_reporting_enabled")
         .eq("id", orgId)
         .maybeSingle();
       cache = data || null;
@@ -42,7 +42,7 @@ async function loadOrgLogo(force = false) {
   return inflight;
 }
 
-/** { name, logo_url } for the signed-in user's own org, or null if none/not signed in. */
+/** { name, logo_url, incident_reporting_enabled } for the signed-in user's own org, or null if none/not signed in. */
 export function useOrgLogo() {
   const [logo, setLogo] = useState(cache || null);
   useEffect(() => {
