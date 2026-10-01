@@ -82,7 +82,11 @@ export default function TagCanvas({ layout, record, scale, qrBaseUrl, selectedId
     <div
       className="relative select-none"
       style={{ width: layout.w * scale, height: layout.h * scale }}
-      onClick={() => onSelect(null)}
+      // Deselect on background click only — a field's own click (bubbling
+      // up from a stopPropagation'd pointerdown) is a SEPARATE click event
+      // from the same gesture, so this must check the actual target rather
+      // than relying on the pointerdown's stopPropagation to suppress it.
+      onClick={(e) => { if (e.target === e.currentTarget) onSelect(null); }}
     >
       <TagView layout={effectiveLayout} record={record} scale={scale} qrBaseUrl={qrBaseUrl} />
       {layout.fields.filter((f) => f.visible).map((f) => {
