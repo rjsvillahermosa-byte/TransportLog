@@ -17,7 +17,10 @@ comment on column public.organizations.logo_url is
   'Public URL (fleetflow-media bucket) of this org''s logo. Shown on the login page (via lookup_client_code) and in the in-app header for that org''s members. NULL = falls back to the default FleetFlow mark.';
 
 -- lookup_client_code (0015) now also returns logo_url — still only 3+1 safe,
--- non-PII columns, so no change to its security posture.
+-- non-PII columns, so no change to its security posture. Postgres won't let
+-- CREATE OR REPLACE change a function's OUT-parameter row type, so the old
+-- 3-column signature must be dropped first.
+drop function if exists public.lookup_client_code(text);
 create or replace function public.lookup_client_code(p_code text)
 returns table (client_code text, name text, plan_status text, logo_url text)
 language sql stable security definer set search_path = public
