@@ -21,7 +21,7 @@ begin
   if v_driver_id is null then raise exception 'No driver found for MAD-001'; end if;
   if v_vehicle_id is null then raise exception 'No vehicle found for MAD-001'; end if;
 
-  v_request_id := '7842fadb-e7c9-48e1-9606-091e8afb1e53';
+  v_request_id := '5789d93e-8bfa-464d-a5e7-146ae824387a';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -43,7 +43,7 @@ begin
     '2026-09-09 20:00:00+08', null, 1543, 1595, 52, 'Forward - Labangon', 'Completed', v_org_id
   );
 
-  v_request_id := '84383466-11c1-4bc2-b16d-a0ab2460addc';
+  v_request_id := 'e5c99f3e-7852-430b-9a67-81be2817069d';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -51,7 +51,7 @@ begin
     special_notes, status, organization_id
   ) values (
     v_request_id, 'VANLOG-20260909-02', 'Guest', 'Hotel Guest', 'Hotel Guest', 1, 'Drop-off',
-    'Madison', 'MCIA', '2026-09-09', '11:29',
+    'Madison', 'MCIA', '2026-09-09', '10:05',
     v_driver_id, v_driver_name, v_vehicle_id, v_vehicle_plate, null,
     'Imported from physical van log: Check out', 'Completed', v_org_id
   );
@@ -62,10 +62,10 @@ begin
   ) values (
     (gen_random_uuid())::text, v_request_id, 'VANLOG-20260909-02', v_driver_id, v_driver_name, v_vehicle_plate, 'Hotel Guest',
     'Guest', null, 1, 'Drop-off', 'Madison', 'MCIA',
-    null, '2026-09-09 11:29:00+08', 1595, 1607, 12, 'Check out', 'Completed', v_org_id
+    '2026-09-09 10:05:00+08', '2026-09-09 11:24:00+08', 1595, 1607, 12, 'Check out', 'Completed', v_org_id
   );
 
-  v_request_id := 'd297e660-4763-4496-ad09-53eb1a0ae08e';
+  v_request_id := 'ced92e3e-6149-4d7e-9f61-3489467652a2';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -87,7 +87,7 @@ begin
     '2026-09-10 04:00:00+08', '2026-09-10 04:58:00+08', 1607, 1618, 11, 'Check in', 'Completed', v_org_id
   );
 
-  v_request_id := 'b657481a-7396-4366-9b79-4ae27cc71bdb';
+  v_request_id := '890a19a3-d9e3-4ac8-b283-2caf7f3e8327';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -109,7 +109,7 @@ begin
     '2026-09-10 13:00:00+08', '2026-09-10 15:00:00+08', 1618, 1624, 6, 'Bubble soap', 'Completed', v_org_id
   );
 
-  v_request_id := '635f1020-37a6-4fba-8f10-dde99181ae54';
+  v_request_id := '0dbf2f75-e0e5-4759-b46a-e783d4474aaf';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -131,7 +131,7 @@ begin
     '2026-09-11 04:00:00+08', '2026-09-11 09:30:00+08', 1624, 1634, 10, 'Done, drop off', 'Completed', v_org_id
   );
 
-  v_request_id := '5b12da20-6fac-48a6-bfdf-ce879542999d';
+  v_request_id := '3c05e420-673d-4b24-b289-a7102e77699c';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -153,7 +153,7 @@ begin
     '2026-09-11 08:45:00+08', '2026-09-11 16:31:00+08', 1634, 1667, 33, 'Visit White House', 'Completed', v_org_id
   );
 
-  v_request_id := '23ea6fdc-1d8c-42cf-ad1b-e63c4339b89e';
+  v_request_id := '334bd604-24af-44a3-8f87-9721e2d247ee';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -175,7 +175,7 @@ begin
     '2026-09-12 06:30:00+08', '2026-09-12 17:00:00+08', 1667, 1684, 17, 'Training', 'Completed', v_org_id
   );
 
-  v_request_id := '60f186a0-f0d5-4db4-bf60-2f67d8765699';
+  v_request_id := 'e7cbbb34-3743-4d0f-92ae-fe643ef29e46';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -197,7 +197,7 @@ begin
     '2026-09-12 18:00:00+08', '2026-09-12 19:32:00+08', 1684, 1716, 32, 'Forward, South bus', 'Completed', v_org_id
   );
 
-  v_request_id := '7993f6e1-bba5-4e5a-80cc-d00931ca8c63';
+  v_request_id := 'e9812d1f-d2dc-4f0d-a1f6-7dd7fca7be99';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -219,7 +219,7 @@ begin
     '2026-09-14 06:00:00+08', '2026-09-14 06:41:00+08', 1716, 1727, 11, 'Check out', 'Completed', v_org_id
   );
 
-  v_request_id := '7eee275a-0833-4363-bac0-691eb8244438';
+  v_request_id := '42b11256-4e71-4910-bf83-94a174f9cb45';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -241,7 +241,7 @@ begin
     '2026-09-19 17:00:00+08', '2026-09-19 17:40:00+08', 1727, 1744, 17, 'Check out', 'Completed', v_org_id
   );
 
-  v_request_id := '750d6db3-0494-466a-85c1-d6b5538930ac';
+  v_request_id := '1f8b6512-d08a-4176-9d7b-8b0ae561cea4';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -263,7 +263,7 @@ begin
     '2026-09-21 10:00:00+08', '2026-09-21 13:00:00+08', 1744, 1757, 13, 'Purchase soap', 'Completed', v_org_id
   );
 
-  v_request_id := '489d3e86-cfcf-4315-959d-0eacec437d35';
+  v_request_id := '98e2ea8a-24fa-4eb7-94d7-defa6e8fac93';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -285,7 +285,7 @@ begin
     '2026-09-22 22:00:00+08', '2026-09-22 22:50:00+08', 1757, 1768, 11, 'Check out', 'Completed', v_org_id
   );
 
-  v_request_id := '90496973-ce88-40ca-86df-d8373b6a8241';
+  v_request_id := '28d9c884-2aa4-4a88-8f0e-9a3b385f7994';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -307,7 +307,7 @@ begin
     '2026-09-23 21:30:00+08', '2026-09-23 22:00:00+08', 1768, 1779, 11, 'Check in', 'Completed', v_org_id
   );
 
-  v_request_id := '3281c14b-a112-4f3e-bb96-da68e60f7d50';
+  v_request_id := '74154882-3922-4e56-a07d-ede74b9582e2';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -329,7 +329,7 @@ begin
     '2026-09-29 09:00:00+08', '2026-09-29 09:41:00+08', 1866, 1878, 12, 'Check out', 'Completed', v_org_id
   );
 
-  v_request_id := 'fde8e223-9c57-4132-bb49-56b1305ec473';
+  v_request_id := 'e654f00d-4643-471e-b722-93bf77b18c8c';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -351,7 +351,7 @@ begin
     '2026-09-29 11:40:00+08', '2026-09-29 12:00:00+08', 1878, 1888, 10, 'Check in', 'Completed', v_org_id
   );
 
-  v_request_id := '2af4eb54-25a7-42e6-8f26-26603a1d8eab';
+  v_request_id := 'eaad9b88-bb25-4855-8df6-a2b2738af30a';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -373,7 +373,7 @@ begin
     '2026-09-29 13:30:00+08', '2026-09-29 14:15:00+08', 1888, 1922, 34, null, 'Completed', v_org_id
   );
 
-  v_request_id := '0ba93bf6-186a-4073-a68d-3ca5b1a184f5';
+  v_request_id := 'dfb1c3a7-27f6-4d25-836e-9c979928d350';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -395,7 +395,7 @@ begin
     '2026-09-29 16:00:00+08', '2026-09-29 16:40:00+08', 1922, 1935, 13, 'Check out', 'Completed', v_org_id
   );
 
-  v_request_id := '26f52f47-6ca9-47b8-9075-6b320e49d37b';
+  v_request_id := 'baca6463-9373-4b03-ab4e-1b4a100e8e2e';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,
@@ -417,7 +417,7 @@ begin
     '2026-09-29 17:10:00+08', '2026-09-29 19:49:00+08', 1935, 1975, 40, null, 'Completed', v_org_id
   );
 
-  v_request_id := 'fbea52ba-e7e6-48e9-8987-218a102665da';
+  v_request_id := '0a9f114a-83d2-4936-81cf-6e0e1482310a';
   insert into public.transport_requests (
     id, mission_id, requester_type, requested_by, guest_name, pax_count, booking_type,
     pickup_location, destination, schedule_date, schedule_time,

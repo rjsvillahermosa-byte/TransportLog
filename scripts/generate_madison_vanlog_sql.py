@@ -12,7 +12,7 @@ import uuid
 ROWS = [
     # date, time_out, time_in, purpose, pickup, dest, requester_type, booking_type, guest_name, dept, start_odo, end_odo, remarks
     ("2026-09-09", "20:00", None,    "Go Home",     "Madison", "Labangon",        "Errand", "Errand",         "Ma'am Izyl", None, 1543, 1595, "Forward - Labangon"),
-    ("2026-09-09", None,    "11:29", "Check out",   "Madison", "MCIA",            "Guest",  "Drop-off",       "Hotel Guest", None, 1595, 1607, "Check out"),
+    ("2026-09-09", "10:05", "11:24", "Check out",   "Madison", "MCIA",            "Guest",  "Drop-off",       "Hotel Guest", None, 1595, 1607, "Check out"),
     ("2026-09-10", "04:00", "04:58", "Pick-up",     "Airport", "Madison",         "Guest",  "Airport Pick-up","Hotel Guest", None, 1607, 1618, "Check in"),
     ("2026-09-10", "13:00", "15:00", "Purchase",    "Madison", "LLC Market",      "Errand", "Errand",         "Kenneth", None, 1618, 1624, "Bubble soap"),
     ("2026-09-11", "04:00", "09:30", "Check out",   "Madison", "Airport",         "Guest",  "Drop-off",       "Hotel Guest", None, 1624, 1634, "Done, drop off"),
