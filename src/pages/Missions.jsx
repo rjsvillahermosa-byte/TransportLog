@@ -39,17 +39,18 @@ function MissionCard({ request: r, vehicles, onDelete, onChanged }) {
     e.preventDefault();
     e.stopPropagation();
     const plate = e.target.value;
-    if (!plate) return;
-    const v = vehicles.find((x) => x.plate_number === plate);
+    // "" is the explicit Unassign option — distinct from the disabled
+    // placeholder, which never fires onChange since it can't be reselected.
+    const v = plate ? vehicles.find((x) => x.plate_number === plate) : null;
     setBusy(true);
     try {
-      await api.entities.TransportRequest.update(r.id, { vehicle_plate: plate, vehicle_id: v?.id || null });
+      await api.entities.TransportRequest.update(r.id, { vehicle_plate: plate || null, vehicle_id: v?.id || null });
       onChanged?.();
     } catch {
       alert("Failed to assign vehicle");
-      setAssigningVehicle(false);
     } finally {
       setBusy(false);
+      setAssigningVehicle(false);
     }
   };
 
@@ -116,23 +117,23 @@ function MissionCard({ request: r, vehicles, onDelete, onChanged }) {
             <Car className="w-3.5 h-3.5 text-taupe mt-0.5 flex-none" />
             <div className="min-w-0 flex-1">
               <p className="text-taupe">Vehicle</p>
-              {r.vehicle_plate ? (
-                <p className="text-mocha truncate">{r.vehicle_plate}</p>
-              ) : assigningVehicle ? (
+              {assigningVehicle ? (
                 <Select
                   autoFocus
                   disabled={busy}
-                  defaultValue=""
+                  defaultValue={r.vehicle_plate || ""}
                   onChange={assignVehicle}
                   onClick={(e) => e.stopPropagation()}
                   onBlur={() => setAssigningVehicle(false)}
                   className="h-6 py-0 text-xs"
                 >
-                  <option value="" disabled>
-                    {busy ? "Assigning…" : "Pick a vehicle…"}
-                  </option>
+                  <option value="">{busy ? "Saving…" : "— Unassign —"}</option>
                   {vehicles
-                    .filter((v) => v.status === "available")
+                    // Always include the currently-assigned vehicle even if its
+                    // status isn't "available" (e.g. it shows in_use because
+                    // it's assigned to THIS mission) — otherwise reopening the
+                    // picker on an already-assigned mission looks broken/empty.
+                    .filter((v) => v.status === "available" || v.plate_number === r.vehicle_plate)
                     .map((v) => (
                       <option key={v.id} value={v.plate_number}>
                         {v.plate_number} — {v.model || v.unit_name || ""}
@@ -146,9 +147,9 @@ function MissionCard({ request: r, vehicles, onDelete, onChanged }) {
                     e.stopPropagation();
                     setAssigningVehicle(true);
                   }}
-                  className="text-orange font-medium hover:underline"
+                  className={r.vehicle_plate ? "text-mocha truncate hover:text-orange hover:underline" : "text-orange font-medium hover:underline"}
                 >
-                  Assign vehicle
+                  {r.vehicle_plate || "Assign vehicle"}
                 </button>
               )}
             </div>
