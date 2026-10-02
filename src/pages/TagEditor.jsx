@@ -97,14 +97,13 @@ export default function TagEditor() {
       toast({ title: "This vehicle has no QR token yet", description: "Generate one from Fleet → Asset Record first." });
       return;
     }
-    const qs = new URLSearchParams({
-      plate: selectedVehicle.plate_number || "",
-      model: selectedVehicle.model || selectedVehicle.unit_name || "",
-      url: `${qrBaseUrl}${selectedVehicle.vehicle_qr_token}`,
-      org: orgInfo?.name || "",
-      logo: orgInfo?.logo_url || "",
-    });
-    window.open(`/print/vehicle-sticker?${qs.toString()}`, "_blank");
+    try {
+      sessionStorage.setItem("ff.tagPrintPayload", JSON.stringify({ layout, record, qrBaseUrl }));
+    } catch (e) {
+      toast({ title: "Couldn't prepare print", description: e.message });
+      return;
+    }
+    window.open("/print/tag", "_blank");
   };
 
   useEffect(() => {

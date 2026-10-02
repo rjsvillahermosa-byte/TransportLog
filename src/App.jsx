@@ -36,6 +36,7 @@ import Faqs from "./pages/Faqs";
 import Reviews from "./pages/Reviews";
 import VehicleScan from "./pages/VehicleScan";
 import VehicleStickerPrint from "./pages/VehicleStickerPrint";
+import TagPrint from "./pages/TagPrint";
 import { LoginPage } from "./pages/Auth";
 import { RegisterPage, ForgotPasswordPage, ResetPasswordPage } from "./pages/AuthExtra";
 import { useAccessMatrix } from "./lib/access";
@@ -83,6 +84,9 @@ function Shell() {
   // Asset Record modal already has in hand, no DB access, so no auth gate.
   // Opened in its own tab precisely to stay outside the app's nav chrome.
   if (location.pathname === "/print/vehicle-sticker") return <VehicleStickerPrint />;
+  // Tag Editor's own print output — renders the actual designed layout via
+  // TagView, unlike the fixed-template route above.
+  if (location.pathname === "/print/tag") return <TagPrint />;
   if (!user && !isAuthPath) return <Navigate to="/login" replace />;
   if (user && isAuthPath) return <Navigate to="/" replace />;
 
