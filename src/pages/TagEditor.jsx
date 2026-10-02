@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Printer, Undo2, Redo2, RotateCcw, ZoomIn, ZoomOut, Eye, EyeOff } from "lucide-react";
+import { Printer, Undo2, Redo2, RotateCcw, ZoomIn, ZoomOut, Eye, EyeOff, Save, FolderOpen, Trash2 } from "lucide-react";
 import { api } from "../lib/db";
 import { useOrgLogo } from "../lib/orgLogo";
 import { useToast } from "../components/Layout";
@@ -19,10 +19,14 @@ export default function TagEditor() {
   const toast = useToast();
   const orgInfo = useOrgLogo();
   const editor = useTagEditor();
-  const { layout, commit, undo, redo, canUndo, canRedo, selectedId, setSelectedId, zoom, setZoom, resetToDefault } = editor;
+  const {
+    layout, commit, undo, redo, canUndo, canRedo, selectedId, setSelectedId, zoom, setZoom, resetToDefault,
+    presets, savePreset, loadPreset, deletePreset,
+  } = editor;
 
   const [vehicles, setVehicles] = useState([]);
   const [vehicleId, setVehicleId] = useState("");
+  const [templateName, setTemplateName] = useState("");
 
   useEffect(() => {
     api.entities.Vehicle.list().then((rows) => setVehicles(rows || [])).catch(() => setVehicles([]));
@@ -64,6 +68,24 @@ export default function TagEditor() {
     if (!size) return;
     const factor = size.w / layout.w;
     commit(scaleLayout(layout, factor));
+  };
+
+  const saveTemplate = () => {
+    const name = templateName.trim();
+    if (!name) {
+      toast({ title: "Name this template first" });
+      return;
+    }
+    const overwriting = presets.some((p) => p.name === name);
+    savePreset(name);
+    toast({ title: overwriting ? "Template updated" : "Template saved", description: name });
+    setTemplateName("");
+  };
+
+  const deleteTemplate = (name) => {
+    if (!window.confirm(`Delete the "${name}" template? This can't be undone.`)) return;
+    deletePreset(name);
+    toast({ title: "Template deleted", description: name });
   };
 
   const printOne = () => {
@@ -138,6 +160,48 @@ export default function TagEditor() {
                 <option key={s.label} value={s.label}>{s.label}</option>
               ))}
             </Select>
+          </div>
+
+          <div className="pt-2 border-t border-sand/70">
+            <Label className="mb-1.5">Templates</Label>
+            <p className="text-[11px] text-taupe mb-2">Save this layout to reuse later, or load one you saved before.</p>
+            <div className="flex gap-2">
+              <Input
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="e.g. Standard Vehicle Tag"
+                onKeyDown={(e) => e.key === "Enter" && saveTemplate()}
+              />
+              <Button size="sm" variant="primary" onClick={saveTemplate} className="flex-none">
+                <Save className="w-4 h-4" />
+              </Button>
+            </div>
+            {presets.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {presets.map((p) => (
+                  <div
+                    key={p.name}
+                    className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs text-mocha hover:bg-cream"
+                  >
+                    <button
+                      onClick={() => { loadPreset(p.name); toast({ title: "Template loaded", description: p.name }); }}
+                      className="flex items-center gap-1.5 min-w-0 flex-1 text-left hover:text-brand"
+                      title="Load this template"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5 flex-none" />
+                      <span className="truncate">{p.name}</span>
+                    </button>
+                    <button
+                      onClick={() => deleteTemplate(p.name)}
+                      className="text-taupe hover:text-red-600 flex-none"
+                      title="Delete template"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
