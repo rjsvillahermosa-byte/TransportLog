@@ -4,23 +4,13 @@ import { ScanLine, Car, ShieldCheck, ClipboardCheck, ArrowRight, AlertTriangle }
 import { Button } from "../components/ui";
 import { getSupabaseClient } from "../lib/supabaseClient";
 import { auth } from "../lib/db";
+import { CHECKLIST } from "../lib/checklist";
 
 // Vehicle QR landing — /v/<token>. Anyone signed in can resolve the token
 // (vehicle_by_qr_token RPC, SECURITY DEFINER); the page shows the vehicle and
 // routes the driver to the right place in THE VEHICLE'S organization.
 // This is the "which vehicle am I in" half of physical-world identity; the
 // booking side stays org-stamped by the signed-in user (0005 trigger).
-
-const CHECKLIST = [
-  { key: "tires", label: "Tires — pressure & condition (all 4 + spare)" },
-  { key: "fuel", label: "Fuel level sufficient for the trip" },
-  { key: "lights", label: "Lights, brake lights & turn signals working" },
-  { key: "brakes", label: "Brakes responsive (test before moving)" },
-  { key: "fluids", label: "Oil, coolant & washer fluid levels OK" },
-  { key: "docs", label: "OR/CR, insurance & registration inside the vehicle" },
-  { key: "clean", label: "Interior clean & ready for guests" },
-  { key: "tools", label: "Spare tire, jack & early-warning devices present" },
-];
 
 export default function VehicleScan() {
   const { token } = useParams();

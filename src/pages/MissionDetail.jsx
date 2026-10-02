@@ -6,6 +6,7 @@ import {
   Ban,
   Camera,
   CheckCircle2,
+  ClipboardCheck,
   Loader2,
   Navigation,
   Play,
@@ -18,6 +19,7 @@ import { themeColors } from "../lib/theme";
 import { setMissionContext, onOdoValue } from "../lib/voice";
 import { api, auth, integrations, isOnline, enqueueAction } from "../lib/db";
 import { cn, STATUS_STYLES } from "../lib/utils";
+import { CHECKLIST } from "../lib/checklist";
 import { Button, Spinner, Textarea, Select, Label } from "../components/ui";
 import { useToast } from "../components/Layout";
 import { useOrgLogo } from "../lib/orgLogo";
@@ -71,11 +73,13 @@ const ODO_PROMPT =
   "Return just the numeric value with no text, no units, no commas, no periods for thousands.";
 
 function OdoCapture({ label, onCaptured, existing }) {
+  const toast = useToast();
   const inputRef = useRef(null);
   const [photo, setPhoto] = useState(existing?.photoUrl || "");
   const [reading, setReading] = useState(existing?.reading ? String(existing.reading) : "");
   const [readingAi, setReadingAi] = useState(false);
   const [manual, setManual] = useState(false);
+  const [aiFailed, setAiFailed] = useState(false);
 
   // "Odometer 38400" from the voice assistant fills this field
   useEffect(() => onOdoValue((v) => {
@@ -87,6 +91,7 @@ function OdoCapture({ label, onCaptured, existing }) {
     const file = e.target.files?.[0];
     if (!file) return;
     setManual(false);
+    setAiFailed(false);
     setReadingAi(true);
     setReading("");
     try {
@@ -99,13 +104,24 @@ function OdoCapture({ label, onCaptured, existing }) {
           image_urls: [file_url],
           response_json_schema: { type: "object", properties: { odo_reading: { type: "number" } } },
         });
-        setReading(String(res.odo_reading || ""));
+        if (res.odo_reading != null) {
+          setReading(String(res.odo_reading));
+        } else {
+          // The model ran but couldn't read a number (glare, blur, cropped
+          // display) — say so explicitly instead of leaving a blank field
+          // with no explanation.
+          setAiFailed(true);
+          setManual(true);
+          toast({ title: "Couldn't read the odometer", description: "Glare, blur, or the display was cropped — enter the reading manually." });
+        }
       } else {
         setManual(true); // enter manually — offline mode
       }
     } catch (D) {
       console.error("ODO capture failed:", D);
+      setAiFailed(true);
       setManual(true);
+      toast({ title: "Odometer reading failed", description: D?.message || "The reading service didn't respond — enter the number manually." });
     } finally {
       setReadingAi(false);
     }
@@ -156,7 +172,11 @@ function OdoCapture({ label, onCaptured, existing }) {
           {!readingAi && (
             <div className="space-y-2">
               <label className="text-xs text-taupe flex items-center gap-2">
-                ODO Reading {manual && <span className="text-accent-dark">(enter manually — offline mode)</span>}
+                ODO Reading {manual && (
+                  <span className="text-accent-dark">
+                    {aiFailed ? "(AI reading failed — enter manually)" : "(enter manually — offline mode)"}
+                  </span>
+                )}
                 {reading && !manual && (
                   <span className="text-[10px] text-brand font-medium bg-mint/60 border border-mintdark rounded-full px-2 py-0.5">
                     AI verified
@@ -298,6 +318,11 @@ export default function MissionDetail() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [submittingCancel, setSubmittingCancel] = useState(false);
+  // In-app pre-departure checklist — an alternative to scanning the
+  // vehicle's physical QR code (VehicleScan.jsx / checklistData below),
+  // for drivers whose phone can't open an external QR scanner from here.
+  const [inlineChecklistAnswers, setInlineChecklistAnswers] = useState({});
+  const [inlineChecklistDone, setInlineChecklistDone] = useState(false);
 
   useEffect(() => {
     auth.currentUser().then(setMe).catch(() => {});
@@ -460,12 +485,15 @@ export default function MissionDetail() {
       });
       return;
     }
-    // 0030 pre-mission gate: the driver must have scanned the vehicle QR and
-    // completed the walk-around checklist (same vehicle, last 12 hours).
-    if (vehicleId && !checklistData) {
+    // 0030 pre-mission gate: the driver must complete the walk-around
+    // checklist first — either by scanning the vehicle's physical QR code
+    // (checklistData, same vehicle, last 12 hours) or, when that's not
+    // practical on their device, the in-app checklist below.
+    const checklistSatisfied = !!checklistData || inlineChecklistDone;
+    if (vehicleId && !checklistSatisfied) {
       toast({
         title: "Pre-mission checklist required",
-        description: "Scan the QR code inside this vehicle and complete the checklist before starting.",
+        description: "Complete the pre-departure checklist before starting.",
       });
       return;
     }
@@ -478,9 +506,15 @@ export default function MissionDetail() {
         driver_id: request.assigned_driver_id || "",
         vehicle_plate: request.vehicle_plate || "",
         vehicle_id: vehicleId || null,
+        // Only true when actually scanned at the vehicle — the in-app
+        // checklist is a convenience fallback, not physical verification.
         vehicle_qr_verified: !!checklistData,
-        checklist: checklistData?.answers || null,
-        checklist_completed_at: checklistData ? new Date(checklistData.at).toISOString() : null,
+        checklist: checklistData?.answers || (inlineChecklistDone ? inlineChecklistAnswers : null),
+        checklist_completed_at: checklistData
+          ? new Date(checklistData.at).toISOString()
+          : inlineChecklistDone
+            ? new Date().toISOString()
+            : null,
         time_out: new Date().toISOString(),
         odo_start_photo: startOdo.photoUrl,
         start_odometer: startOdo.reading,
@@ -586,6 +620,9 @@ export default function MissionDetail() {
   const done = request.status === "Completed" && log?.end_odometer != null;
   const inProgress = request.status === "In Progress";
   const cancelled = request.status === "Cancelled";
+  const checklistSatisfied = !!checklistData || inlineChecklistDone;
+  const needsChecklist = !!vehicleId && !checklistSatisfied;
+  const checklistAllChecked = CHECKLIST.every((c) => inlineChecklistAnswers[c.key]);
 
   return (
     <div>
@@ -708,15 +745,63 @@ export default function MissionDetail() {
 
       {!done && !cancelled && (
         <div className="space-y-4">
-          {!inProgress && (
-            <OdoCapture
-              label={
-                baselineOdo != null
-                  ? `Start ODO — before the trip (vehicle baseline: ${Number(baselineOdo).toLocaleString()} km)`
-                  : "Start ODO — before the trip"
-              }
-              onCaptured={setStartOdo}
-            />
+          {!inProgress && needsChecklist && (
+            <div className="bg-white rounded-3xl shadow-card p-4 space-y-3">
+              <p className="text-sm font-semibold text-cocoa flex items-center gap-2">
+                <ClipboardCheck className="w-4 h-4 text-brand" /> Pre-Departure Checklist
+              </p>
+              <p className="text-xs text-taupe">
+                Walk around the vehicle and check each item before you drive.
+              </p>
+              <div className="space-y-2">
+                {CHECKLIST.map((c) => (
+                  <label
+                    key={c.key}
+                    className={cn(
+                      "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors",
+                      inlineChecklistAnswers[c.key] ? "border-brand/40 bg-mint/30" : "border-sand/60 bg-white hover:bg-cream/60"
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!inlineChecklistAnswers[c.key]}
+                      onChange={(e) =>
+                        setInlineChecklistAnswers((a) => ({ ...a, [c.key]: e.target.checked }))
+                      }
+                      className="mt-0.5 h-4 w-4 accent-[#1A2B48]"
+                    />
+                    <span className="text-sm text-cocoa">{c.label}</span>
+                  </label>
+                ))}
+              </div>
+              <Button
+                variant="primary"
+                className="w-full"
+                disabled={!checklistAllChecked}
+                onClick={() => setInlineChecklistDone(true)}
+              >
+                <ClipboardCheck className="w-4 h-4" />
+                Continue to Start ODO ({Object.values(inlineChecklistAnswers).filter(Boolean).length}/{CHECKLIST.length})
+              </Button>
+            </div>
+          )}
+
+          {!inProgress && !needsChecklist && (
+            <>
+              {vehicleId && (
+                <p className="flex items-center gap-1.5 text-xs text-brand bg-mint/40 border border-brand/20 rounded-xl px-3 py-2">
+                  <ClipboardCheck className="w-3.5 h-3.5" /> Pre-departure checklist complete
+                </p>
+              )}
+              <OdoCapture
+                label={
+                  baselineOdo != null
+                    ? `Start ODO — before the trip (vehicle baseline: ${Number(baselineOdo).toLocaleString()} km)`
+                    : "Start ODO — before the trip"
+                }
+                onCaptured={setStartOdo}
+              />
+            </>
           )}
           {inProgress && (
             <>
@@ -816,24 +901,26 @@ export default function MissionDetail() {
             </>
           )}
 
-          <Button
-            variant="primary"
-            className="w-full h-12"
-            disabled={busy}
-            onClick={inProgress ? endMission : startMission}
-          >
-            {busy ? (
-              <Spinner className="w-5 h-5" />
-            ) : inProgress ? (
-              <>
-                <Square className="w-5 h-5" /> End Mission
-              </>
-            ) : (
-              <>
-                <Play className="w-5 h-5" /> Start Mission
-              </>
-            )}
-          </Button>
+          {(inProgress || !needsChecklist) && (
+            <Button
+              variant="primary"
+              className="w-full h-12"
+              disabled={busy}
+              onClick={inProgress ? endMission : startMission}
+            >
+              {busy ? (
+                <Spinner className="w-5 h-5" />
+              ) : inProgress ? (
+                <>
+                  <Square className="w-5 h-5" /> End Mission
+                </>
+              ) : (
+                <>
+                  <Play className="w-5 h-5" /> Start Mission
+                </>
+              )}
+            </Button>
+          )}
         </div>
       )}
 
