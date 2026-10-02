@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import TagView from "../components/TagView";
 
 // Printable output of a Tag Editor layout — opened in its own tab (no app
@@ -18,6 +19,10 @@ import TagView from "../components/TagView";
 const SCALE = 96; // CSS px per inch — true physical size at 100% print zoom
 
 export default function TagPrint() {
+  const [params] = useSearchParams();
+  // ?preview=1 renders the output without triggering the OS print dialog —
+  // useful to sanity-check a layout before committing paper/laminate to it.
+  const previewOnly = params.get("preview") === "1";
   const [payload, setPayload] = useState(null);
   const [ready, setReady] = useState(false);
 
@@ -38,9 +43,9 @@ export default function TagPrint() {
   }, [payload]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || previewOnly) return;
     window.print();
-  }, [ready]);
+  }, [ready, previewOnly]);
 
   if (!payload) {
     return (
@@ -72,7 +77,7 @@ export default function TagPrint() {
         onClick={() => window.print()}
         className="print:hidden fixed bottom-6 right-6 bg-brand text-white text-sm font-medium rounded-full px-4 py-2 shadow-card"
       >
-        Print again
+        {previewOnly ? "Print" : "Print again"}
       </button>
     </div>
   );
