@@ -88,7 +88,12 @@ function Shell() {
   // TagView, unlike the fixed-template route above.
   if (location.pathname === "/print/tag") return <TagPrint />;
   if (!user && !isAuthPath) return <Navigate to="/login" replace />;
-  if (user && isAuthPath) return <Navigate to="/" replace />;
+  // Clicking a password-reset email link establishes a real (recovery)
+  // Supabase session, which makes `user` truthy — so without this
+  // exception, the rule below would bounce straight to "/" before the
+  // new-password form ever renders, and the password never actually
+  // changes. /reset-password must stay reachable even when "logged in".
+  if (user && isAuthPath && location.pathname !== "/reset-password") return <Navigate to="/" replace />;
 
   if (isAuthPath)
     return (
