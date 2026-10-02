@@ -14,7 +14,7 @@ export const CAPABILITIES = [
   { key: "manage_settings", label: "Settings", desc: "Branding, fuel bands, user management" },
   { key: "manage_fleet", label: "Manage fleet", desc: "Add/edit vehicles, drivers & service logs" },
   { key: "manage_users", label: "Manage users", desc: "Invite, disable & re-role team members" },
-  { key: "cancel_booking", label: "Cancel bookings", desc: "Void a booking with a required reason (Supervisor+)" },
+  { key: "cancel_booking", label: "Cancel bookings", desc: "Void a booking with a required reason" },
 ];
 
 const ROLES = ["Super Admin", "Admin", "Supervisor", "Driver", "Staff"];

@@ -11,7 +11,7 @@ const DEFAULTS = {
   manage_settings: ["Super Admin", "Admin"],
   manage_fleet: ["Super Admin", "Admin", "Supervisor"],
   manage_users: ["Super Admin", "Admin"],
-  cancel_booking: ["Super Admin", "Admin", "Supervisor"],
+  cancel_booking: ["Super Admin", "Admin", "Supervisor", "Staff"],
 };
 
 let matrixCache = null;   // { capability: [roles] } | null
