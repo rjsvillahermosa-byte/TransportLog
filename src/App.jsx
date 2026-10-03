@@ -35,6 +35,7 @@ import Privacy from "./pages/Privacy";
 import Faqs from "./pages/Faqs";
 import Reviews from "./pages/Reviews";
 import VehicleScan from "./pages/VehicleScan";
+import ScanVehicle from "./pages/ScanVehicle";
 import VehicleStickerPrint from "./pages/VehicleStickerPrint";
 import TagPrint from "./pages/TagPrint";
 import { LoginPage } from "./pages/Auth";
@@ -218,6 +219,7 @@ function Shell() {
           <Route path="/fleet" element={<Fleet user={user} />} />
           <Route path="/fuel" element={<Fuel />} />
           <Route path="/new-booking" element={<NewBooking user={user} />} />
+          <Route path="/scan" element={<ScanVehicle />} />
           <Route path="/history" element={<History />} />
           <Route path="/qr-codes" element={<QrCodes />} />
           <Route path="/tag-editor" element={<TagEditor />} />

@@ -1,25 +1,26 @@
-import { useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { ScanLine, Car, ShieldCheck, ClipboardCheck, ArrowRight, AlertTriangle } from "lucide-react";
-import { Button } from "../components/ui";
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { ScanLine, Car, AlertTriangle, ClipboardList } from "lucide-react";
 import { getSupabaseClient } from "../lib/supabaseClient";
-import { auth } from "../lib/db";
-import { CHECKLIST } from "../lib/checklist";
 
 // Vehicle QR landing — /v/<token>. Anyone signed in can resolve the token
-// (vehicle_by_qr_token RPC, SECURITY DEFINER); the page shows the vehicle and
-// routes the driver to the right place in THE VEHICLE'S organization.
-// This is the "which vehicle am I in" half of physical-world identity; the
-// booking side stays org-stamped by the signed-in user (0005 trigger).
+// (vehicle_by_qr_token RPC, SECURITY DEFINER); the page shows the vehicle,
+// finds the open (Pending/In Progress) booking assigned to it, marks the
+// scan as the driver's proof of physical presence for that vehicle, and
+// sends the driver straight into that mission. The booking side stays
+// org-stamped by the signed-in user (0005 trigger) — the QR never decides
+// which org a booking belongs to, only which vehicle/mission it opens.
+//
+// The walk-around checklist itself lives entirely on Mission Detail now
+// (behind its own "Start Mission" tap) — scanning the QR is proof you're at
+// the vehicle, not a substitute for actually inspecting it.
 
 export default function VehicleScan() {
   const { token } = useParams();
+  const navigate = useNavigate();
   const [vehicle, setVehicle] = useState(null);
-  const [state, setState] = useState("loading"); // loading | found | notfound | error
+  const [state, setState] = useState("loading"); // loading | found | nomission | notfound | error
   const [errorMsg, setErrorMsg] = useState("");
-  const [checked, setChecked] = useState({});
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -34,53 +35,39 @@ export default function VehicleScan() {
         }
         const { data, error } = await sb.rpc("vehicle_by_qr_token", { p_token: token });
         if (error) throw new Error(error.message);
-        if (!data || (Array.isArray(data) && data.length === 0)) {
+        const v = Array.isArray(data) ? data[0] : data;
+        if (!v) {
           setState("notfound");
           return;
         }
-        setVehicle(Array.isArray(data) ? data[0] : data);
-        setState("found");
+        setVehicle(v);
+
+        // Mark this as a verified physical scan for whichever mission we
+        // land on — Mission Detail reads this to set vehicle_qr_verified on
+        // the mileage log, independent of the walk-around checklist itself.
+        sessionStorage.setItem(`ff:qrverified:${v.id}`, String(Date.now()));
+
+        const { data: missions, error: mErr } = await sb
+          .from("transport_requests")
+          .select("id")
+          .eq("vehicle_id", v.id)
+          .in("status", ["Pending", "In Progress"])
+          .order("schedule_date", { ascending: true })
+          .order("schedule_time", { ascending: true })
+          .limit(1);
+        if (mErr) throw new Error(mErr.message);
+        if (missions?.[0]?.id) {
+          navigate(`/mission/${missions[0].id}`, { replace: true });
+          return;
+        }
+        setState("nomission");
       } catch (e) {
         setErrorMsg(e.message || "Lookup failed");
         setState("error");
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
-
-  const allChecked = useMemo(
-    () => CHECKLIST.every((c) => checked[c.key]),
-    [checked]
-  );
-
-  const saveChecklist = async () => {
-    if (!vehicle || !allChecked) return;
-    setSaving(true);
-    try {
-      const sb = getSupabaseClient();
-      await sb.from("pending_vehicle_checklists").insert({
-        vehicle_id: vehicle.id,
-        plate_number: vehicle.plate_number,
-        answers: checked,
-        completed_at: new Date().toISOString(),
-      });
-      sessionStorage.setItem(
-        `ff:checklist:${vehicle.id}`,
-        JSON.stringify({ at: Date.now(), answers: checked })
-      );
-      setSaved(true);
-    } catch {
-      // Even if the table is missing (0030 not fully applied), the local
-      // cache still lets the driver proceed — the checklist answers are
-      // attached to the mission at start.
-      sessionStorage.setItem(
-        `ff:checklist:${vehicle.id}`,
-        JSON.stringify({ at: Date.now(), answers: checked })
-      );
-      setSaved(true);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-cream">
@@ -111,89 +98,31 @@ export default function VehicleScan() {
           </div>
         )}
 
-        {state === "found" && vehicle && (
-          <>
-            <div className="rounded-3xl bg-white p-6 shadow-card border border-sand/60">
-              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-brand">
-                <ScanLine className="h-4 w-4" /> Vehicle verified
-              </p>
-              <div className="mt-3 flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-mint/50 border border-brand/20">
-                  <Car className="h-7 w-7 text-brand" />
-                </div>
-                <div>
-                  <p className="font-heading text-2xl font-bold text-cocoa">{vehicle.plate_number}</p>
-                  <p className="text-sm text-taupe">
-                    {[vehicle.unit_name, vehicle.model].filter(Boolean).join(" · ") || "Company vehicle"}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 rounded-2xl bg-cream px-4 py-3 text-sm">
-                <p className="text-taupe">
-                  Belongs to <span className="font-semibold text-cocoa">{vehicle.organization_name || "your organization"}</span>
-                </p>
-                {vehicle.start_odometer_km != null && (
-                  <p className="text-xs text-taupe mt-0.5">
-                    Baseline ODO on record: {vehicle.start_odometer_km.toLocaleString()} km
-                  </p>
-                )}
-                <p className={`text-xs mt-1 font-medium ${vehicle.status === "available" ? "text-brand" : "text-accent-dark"}`}>
-                  Status: {vehicle.status}
-                </p>
-              </div>
+        {state === "nomission" && vehicle && (
+          <div className="rounded-3xl bg-white p-8 text-center shadow-card">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-mint/50 border border-brand/20">
+              <Car className="h-7 w-7 text-brand" />
             </div>
-
-            <div className="mt-5 rounded-3xl bg-white p-6 shadow-card border border-sand/60">
-              <p className="flex items-center gap-2 text-sm font-bold text-cocoa">
-                <ClipboardCheck className="h-4 w-4 text-brand" /> Pre-mission checklist
+            <p className="mt-3 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wide text-brand">
+              <ScanLine className="h-4 w-4" /> Vehicle verified
+            </p>
+            <h1 className="mt-1 font-heading text-xl font-bold text-cocoa">{vehicle.plate_number}</h1>
+            <p className="text-sm text-taupe">
+              {[vehicle.unit_name, vehicle.model].filter(Boolean).join(" · ") || "Company vehicle"}
+            </p>
+            <div className="mt-4 rounded-2xl bg-cream px-4 py-3 text-sm text-left">
+              <p className="flex items-center gap-2 font-semibold text-cocoa">
+                <ClipboardList className="h-4 w-4 text-taupe" /> No mission assigned right now
               </p>
-              <p className="text-xs text-taupe mt-1 mb-3">
-                Walk around the vehicle and check each item before you drive. Takes ~5 minutes.
+              <p className="mt-1 text-xs text-taupe">
+                This vehicle doesn't have a Pending or In Progress booking. Check with dispatch,
+                or open your missions list — the checklist and Start Mission are there once one's assigned.
               </p>
-              <div className="space-y-2">
-                {CHECKLIST.map((c) => (
-                  <label
-                    key={c.key}
-                    className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
-                      checked[c.key] ? "border-brand/40 bg-mint/30" : "border-sand/60 bg-white hover:bg-cream/60"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={!!checked[c.key]}
-                      onChange={(e) => setChecked((ch) => ({ ...ch, [c.key]: e.target.checked }))}
-                      className="mt-0.5 h-4 w-4 accent-[#1A2B48]"
-                    />
-                    <span className="text-sm text-cocoa">{c.label}</span>
-                  </label>
-                ))}
-              </div>
-              <Button
-                variant="primary"
-                className="mt-4 w-full"
-                disabled={!allChecked || saving || saved}
-                onClick={saveChecklist}
-              >
-                {saved ? (
-                  <><ShieldCheck className="h-4 w-4" /> Checklist saved — you're clear to drive</>
-                ) : (
-                  <>Save checklist ({Object.values(checked).filter(Boolean).length}/{CHECKLIST.length})</>
-                )}
-              </Button>
-              {saved && (
-                <p className="mt-3 rounded-xl bg-mint/40 border border-brand/30 px-3 py-2 text-xs text-brand">
-                  Checklist recorded for {vehicle.plate_number} at {new Date().toLocaleTimeString()}. Now open your
-                  mission and capture the Start ODO photo.
-                </p>
-              )}
-              <Link
-                to="/"
-                className="mt-3 flex items-center justify-center gap-1.5 text-sm font-semibold text-brand hover:underline"
-              >
-                Go to my missions <ArrowRight className="h-4 w-4" />
-              </Link>
             </div>
-          </>
+            <Link to="/" className="mt-5 inline-block text-sm font-semibold text-brand hover:underline">
+              Go to Missions →
+            </Link>
+          </div>
         )}
       </div>
     </div>

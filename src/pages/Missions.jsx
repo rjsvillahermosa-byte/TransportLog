@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Briefcase, Building2, ClipboardList, LogOut, Trash2, Clock, MapPin, Calendar, Car } from "lucide-react";
+import { Briefcase, Building2, ClipboardList, LogOut, Trash2, Clock, MapPin, Calendar, Car, ScanLine } from "lucide-react";
 import dayjs from "../lib/day";
 import { api, auth, isOnline } from "../lib/db";
 import { getSupabaseClient } from "../lib/supabaseClient";
@@ -384,7 +384,10 @@ export default function Missions({ user }) {
             </button>
           ))}
         </div>
-        <Button size="sm" variant="primary" className="ml-auto" onClick={() => navigate("/new-booking")}>
+        <Button size="sm" variant="outline" className="ml-auto" onClick={() => navigate("/scan")}>
+          <ScanLine className="w-4 h-4" /> Scan Vehicle QR
+        </Button>
+        <Button size="sm" variant="primary" onClick={() => navigate("/new-booking")}>
           <Calendar className="w-4 h-4" /> New Booking
         </Button>
       </div>

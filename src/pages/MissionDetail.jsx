@@ -10,6 +10,7 @@ import {
   Loader2,
   Navigation,
   Play,
+  ScanLine,
   Square,
   Trash2,
   X,
@@ -296,12 +297,17 @@ export default function MissionDetail() {
   const [loading, setLoading] = useState(true);
   const [startOdo, setStartOdo] = useState(null);
   const [baselineOdo, setBaselineOdo] = useState(null);
-  // 0030 vehicle QR binding: resolved vehicle row + today's checklist (from
-  // the /v/<token> scan page). vehicle_qr_verified=true means the driver
-  // scanned THAT physical vehicle's QR and completed the walk-around.
+  // 0030 vehicle QR binding: resolved vehicle row + whether the driver
+  // scanned THIS physical vehicle's QR (set by VehicleScan.jsx) in the last
+  // 12 hours. This is proof-of-presence only — it feeds vehicle_qr_verified
+  // on the mileage log, it does NOT skip the walk-around checklist below;
+  // scanning the QR and inspecting the vehicle are two different things.
   const [vehicleId, setVehicleId] = useState(null);
   const [vehicleModel, setVehicleModel] = useState("");
-  const [checklistData, setChecklistData] = useState(null);
+  const [qrVerified, setQrVerified] = useState(false);
+  // Pre-flight sequence gate: nothing (checklist, ODO capture) shows until
+  // the driver taps "Start Mission" the first time.
+  const [preflightStarted, setPreflightStarted] = useState(false);
   const [endOdo, setEndOdo] = useState(null);
   const [remarks, setRemarks] = useState("");
   const [busy, setBusy] = useState(false);
@@ -429,20 +435,17 @@ export default function MissionDetail() {
           if (vehicles[0]) {
             setVehicleId(vehicles[0].id);
             setVehicleModel(vehicles[0].model || vehicles[0].unit_name || "");
-            // Baseline ODO suggestion + QR checklist binding only matter
+            // Baseline ODO suggestion + QR-scan verification only matter
             // before the mission has started.
             if (!logs.length) {
               if (vehicles[0].start_odometer_km != null) {
                 setBaselineOdo(vehicles[0].start_odometer_km);
               }
-              const cl = sessionStorage.getItem(`ff:checklist:${vehicles[0].id}`);
-              if (cl) {
-                const parsed = JSON.parse(cl);
-                // Valid for the working day — a morning walk-around covers the
-                // day's missions in the same vehicle.
-                if (Date.now() - parsed.at < 12 * 3600 * 1000 && parsed.answers) {
-                  setChecklistData(parsed);
-                }
+              const scannedAt = sessionStorage.getItem(`ff:qrverified:${vehicles[0].id}`);
+              // Valid for the working day — scanning once at shift start
+              // covers the day's missions in the same vehicle.
+              if (scannedAt && Date.now() - Number(scannedAt) < 12 * 3600 * 1000) {
+                setQrVerified(true);
               }
             }
           }
@@ -485,12 +488,10 @@ export default function MissionDetail() {
       });
       return;
     }
-    // 0030 pre-mission gate: the driver must complete the walk-around
-    // checklist first — either by scanning the vehicle's physical QR code
-    // (checklistData, same vehicle, last 12 hours) or, when that's not
-    // practical on their device, the in-app checklist below.
-    const checklistSatisfied = !!checklistData || inlineChecklistDone;
-    if (vehicleId && !checklistSatisfied) {
+    // 0030 pre-mission gate: the driver must complete the in-app walk-around
+    // checklist — always, regardless of whether they scanned the vehicle's
+    // QR to get here. QR scan proves presence, not that they inspected it.
+    if (vehicleId && !inlineChecklistDone) {
       toast({
         title: "Pre-mission checklist required",
         description: "Complete the pre-departure checklist before starting.",
@@ -506,15 +507,9 @@ export default function MissionDetail() {
         driver_id: request.assigned_driver_id || "",
         vehicle_plate: request.vehicle_plate || "",
         vehicle_id: vehicleId || null,
-        // Only true when actually scanned at the vehicle — the in-app
-        // checklist is a convenience fallback, not physical verification.
-        vehicle_qr_verified: !!checklistData,
-        checklist: checklistData?.answers || (inlineChecklistDone ? inlineChecklistAnswers : null),
-        checklist_completed_at: checklistData
-          ? new Date(checklistData.at).toISOString()
-          : inlineChecklistDone
-            ? new Date().toISOString()
-            : null,
+        vehicle_qr_verified: qrVerified,
+        checklist: inlineChecklistDone ? inlineChecklistAnswers : null,
+        checklist_completed_at: inlineChecklistDone ? new Date().toISOString() : null,
         time_out: new Date().toISOString(),
         odo_start_photo: startOdo.photoUrl,
         start_odometer: startOdo.reading,
@@ -620,8 +615,7 @@ export default function MissionDetail() {
   const done = request.status === "Completed" && log?.end_odometer != null;
   const inProgress = request.status === "In Progress";
   const cancelled = request.status === "Cancelled";
-  const checklistSatisfied = !!checklistData || inlineChecklistDone;
-  const needsChecklist = !!vehicleId && !checklistSatisfied;
+  const needsChecklist = !!vehicleId && !inlineChecklistDone;
   const checklistAllChecked = CHECKLIST.every((c) => inlineChecklistAnswers[c.key]);
 
   return (
@@ -745,14 +739,44 @@ export default function MissionDetail() {
 
       {!done && !cancelled && (
         <div className="space-y-4">
-          {!inProgress && needsChecklist && (
+          {!inProgress && !preflightStarted && (
+            <Button
+              variant="primary"
+              className="w-full h-12"
+              onClick={() => setPreflightStarted(true)}
+            >
+              <Play className="w-5 h-5" /> Start Mission
+            </Button>
+          )}
+
+          {!inProgress && preflightStarted && needsChecklist && (
             <div className="bg-white rounded-3xl shadow-card p-4 space-y-3">
-              <p className="text-sm font-semibold text-cocoa flex items-center gap-2">
-                <ClipboardCheck className="w-4 h-4 text-brand" /> Pre-Departure Checklist
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-cocoa flex items-center gap-2">
+                  <ClipboardCheck className="w-4 h-4 text-brand" /> Pre-Departure Checklist
+                </p>
+                {qrVerified && (
+                  <span className="flex items-center gap-1 text-[10px] font-medium text-brand bg-mint/60 border border-mintdark rounded-full px-2 py-0.5">
+                    <ScanLine className="w-3 h-3" /> QR verified
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-taupe">
                 Walk around the vehicle and check each item before you drive.
               </p>
+              <button
+                type="button"
+                onClick={() =>
+                  setInlineChecklistAnswers(
+                    checklistAllChecked
+                      ? {}
+                      : Object.fromEntries(CHECKLIST.map((c) => [c.key, true]))
+                  )
+                }
+                className="text-xs font-semibold text-brand hover:underline"
+              >
+                {checklistAllChecked ? "Uncheck all" : "Check all"}
+              </button>
               <div className="space-y-2">
                 {CHECKLIST.map((c) => (
                   <label
@@ -781,23 +805,23 @@ export default function MissionDetail() {
                 onClick={() => setInlineChecklistDone(true)}
               >
                 <ClipboardCheck className="w-4 h-4" />
-                Continue to Start ODO ({Object.values(inlineChecklistAnswers).filter(Boolean).length}/{CHECKLIST.length})
+                Submit Checklist ({Object.values(inlineChecklistAnswers).filter(Boolean).length}/{CHECKLIST.length})
               </Button>
             </div>
           )}
 
-          {!inProgress && !needsChecklist && (
+          {!inProgress && preflightStarted && !needsChecklist && (
             <>
               {vehicleId && (
                 <p className="flex items-center gap-1.5 text-xs text-brand bg-mint/40 border border-brand/20 rounded-xl px-3 py-2">
-                  <ClipboardCheck className="w-3.5 h-3.5" /> Pre-departure checklist complete
+                  <ClipboardCheck className="w-3.5 h-3.5" /> Pre-departure checklist submitted — scan the odometer to start driving
                 </p>
               )}
               <OdoCapture
                 label={
                   baselineOdo != null
-                    ? `Start ODO — before the trip (vehicle baseline: ${Number(baselineOdo).toLocaleString()} km)`
-                    : "Start ODO — before the trip"
+                    ? `Scan ODO — before the trip (vehicle baseline: ${Number(baselineOdo).toLocaleString()} km)`
+                    : "Scan ODO — before the trip"
                 }
                 onCaptured={setStartOdo}
               />
@@ -901,7 +925,7 @@ export default function MissionDetail() {
             </>
           )}
 
-          {(inProgress || !needsChecklist) && (
+          {(inProgress || (preflightStarted && !needsChecklist)) && (
             <Button
               variant="primary"
               className="w-full h-12"
@@ -916,7 +940,7 @@ export default function MissionDetail() {
                 </>
               ) : (
                 <>
-                  <Play className="w-5 h-5" /> Start Mission
+                  <Play className="w-5 h-5" /> Confirm &amp; Start Driving
                 </>
               )}
             </Button>
